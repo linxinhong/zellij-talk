@@ -161,7 +161,11 @@ python3 "$AGENTS_DIR/scripts/cli.py" unregister-all --current-session
 
 ## 核心命令参考
 
-所有命令统一通过 `python3 "$AGENTS_DIR/scripts/cli.py" <子命令>` 调用：
+所有命令统一通过 `python3 "$AGENTS_DIR/scripts/cli.py" <子命令>` 调用。你可以随时查看完整帮助：
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" --help
+```
 
 | 子命令 | 用法 | 说明 |
 |--------|------|------|

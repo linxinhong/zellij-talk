@@ -108,6 +108,14 @@ source ~/.zshrc  # 或 source ~/.bashrc
 
 以下命令均以 `python3 "$AGENTS_DIR/scripts/cli.py"` 为前缀调用，下面用 `cli` 作为简写。
 
+### 查看所有命令
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" --help
+```
+
+会列出所有可用子命令：`register`、`unregister`、`unregister-all`、`auto-register`、`to`、`reply`、`from`、`watch`、`wait`、`list`、`health`、`prune`、`send-file`、`multicast`、`broadcast`、`review`。
+
 ### 注册 Agent
 
 **第一步：询问职责**
@@ -254,6 +262,27 @@ python3 "$AGENTS_DIR/scripts/cli.py" unregister-all --current-session
 ```bash
 python3 "$AGENTS_DIR/scripts/cli.py" review [source] [target]
 ```
+
+### 命令速查表
+
+| 子命令 | 用法 | 说明 |
+|--------|------|------|
+| `register` | `register <agent_name>` | 注册当前面板为 Agent |
+| `unregister` | `unregister <agent_name>` | 注销指定 Agent |
+| `unregister-all` | `unregister-all [--current-session]` | 批量注销 |
+| `auto-register` | `auto-register [role]` | 自动生成名字并注册 |
+| `to` | `to <agent_name> <内容> [--no-enter]` | 向已注册 Agent 发消息 |
+| `reply` | `reply <session:pane_id> <内容> [--no-enter]` | 直接向 pane 发消息（无需注册） |
+| `from` | `from <agent_name> [行数] [--ansi]` | 读取 Agent 输出 |
+| `watch` | `watch <agent_name> [关键词]` | 监听输出 |
+| `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
+| `list` | `list [--json]` | 列出已注册 Agent |
+| `health` | `health [agent_name]` | 健康检查 |
+| `prune` | `prune [--dry-run]` | 清理僵尸 Agent |
+| `send-file` | `send-file <agent_name> <文件路径>` | 发送文件 |
+| `multicast` | `multicast "agent1,agent2" "消息"` | 多播消息 |
+| `broadcast` | `broadcast "消息"` | 广播给所有 Agent |
+| `review` | `review [source] [target]` | 代码审查工作流 |
 
 ## 工作模式
 
