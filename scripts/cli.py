@@ -2,10 +2,14 @@
 
 import argparse
 import random
+import shutil
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any
+
+import paths
 
 __version__ = "1.1.0"
 
@@ -160,6 +164,46 @@ def _get_ppid_info() -> str:
         return result.stdout
     except Exception:
         return ""
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Initialize environment: check zellij, ensure directories, seed registry, prune."""
+    _info("🚀 初始化 zellij-talk ...")
+
+    # 1. Check zellij binary
+    if shutil.which("zellij") is None:
+        _err("未找到 zellij 命令，请先安装 Zellij")
+        return 1
+    _info("✅ zellij 已安装")
+
+    # 2. Ensure talk dir exists
+    talk_dir = paths.get_talk_dir()
+    talk_dir.mkdir(parents=True, exist_ok=True)
+    _info(f"✅ 数据目录已就绪: {talk_dir}")
+
+    # 3. Seed registry.json from example if missing
+    registry_path = paths.get_registry_path()
+    if not registry_path.exists():
+        example = Path(__file__).with_name("registry.json.example").resolve().parent.parent / "registry.json.example"
+        if example.exists():
+            import shutil as _shutil
+            _shutil.copy2(example, registry_path)
+            _info(f"✅ 已从模板创建注册表: {registry_path}")
+        else:
+            _warn(f"注册表模板不存在，跳过: {example}")
+    else:
+        _info(f"✅ 注册表已存在: {registry_path}")
+
+    # 4. Prune dead agents
+    _info("")
+    class PruneArgs:
+        dry_run = False
+    cmd_prune(PruneArgs())
+
+    _info("")
+    _info("✅ 环境初始化完成。下一步：请确认当前 Agent 的职责，然后执行 register 或 auto-register。")
+    _info("   示例：python3 scripts/cli.py auto-register reviewer")
+    return 0
 
 
 def cmd_auto_register(args: argparse.Namespace) -> int:
@@ -559,6 +603,9 @@ def main(argv: list[str] | None = None) -> int:
     p = subparsers.add_parser("unregister-all", help="注销所有 Agent")
     p.add_argument("--current-session", action="store_true", help="仅注销当前 session")
 
+    p = subparsers.add_parser("init", help="初始化：清理僵尸 Agent 并自动注册当前面板")
+    p.add_argument("role", nargs="?", default="coder", help="角色，默认 coder")
+
     p = subparsers.add_parser("auto-register", help="自动生成名字并注册")
     p.add_argument("role", nargs="?", default="coder", help="角色，默认 coder")
 
@@ -622,6 +669,7 @@ def main(argv: list[str] | None = None) -> int:
         "register": cmd_register,
         "unregister": cmd_unregister,
         "unregister-all": cmd_unregister_all,
+        "init": cmd_init,
         "auto-register": cmd_auto_register,
         "to": cmd_to,
         "reply": cmd_reply,

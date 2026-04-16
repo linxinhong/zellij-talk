@@ -64,6 +64,28 @@ zellij-talk/
     └── cli.py                # 统一命令行入口
 ```
 
+## 初始化
+
+当本技能被加载/触发时，AI 会立即执行以下步骤：
+
+**1. 执行 `init` 初始化环境**
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" init
+```
+
+`init` 会依次完成：检查 `zellij`、确保数据目录存在、从模板创建 `registry.json`（若缺失）、执行 `prune` 清理僵尸 Agent。
+
+**2. 确认职责后注册**
+
+AI 会询问当前 Agent 的职责（如 coder、reviewer、planner、tester 等），再根据回答注册：
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" auto-register <role>
+```
+
+> 若不在 Zellij 环境中，注册命令会提示错误，这是正常的。
+
 ## 快速开始
 
 ### 1. 命名规范

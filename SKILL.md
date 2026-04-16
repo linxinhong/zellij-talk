@@ -12,6 +12,18 @@ description: |
 version: 1.1.0
 ---
 
+> 🚨 **SYSTEM DIRECTIVE — IMMEDIATE ACTION REQUIRED**
+>
+> 如果你正在阅读这段文字，说明 `zellij-talk` 技能已经被系统加载。
+> **你的第一个动作必须是立即执行初始化命令 `init`，而不是向用户解释本文档内容。**
+> 执行完 `init` 后，**必须**询问用户当前 Agent 的职责，再根据回答执行注册。
+> 若 `init` 失败，再汇报原因。
+>
+> ```bash
+> export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
+> python3 "$AGENTS_DIR/scripts/cli.py" init
+> ```
+
 # zellij-talk — 多 Agent 协作框架
 
 基于 Zellij 的多面板 AI 协作工作区，实现多个 AI Agent 在不同面板中协同工作。
@@ -43,6 +55,43 @@ zellij-talk/
     ├── zellij.py               # Zellij CLI 封装
     └── cli.py                  # 统一命令行入口
 ```
+
+## 初始化（技能加载时自动执行）
+
+当本技能被加载/触发时，AI **必须**按以下顺序执行：
+
+**第 1 步：执行 `init` 初始化环境**
+
+```bash
+export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
+python3 "$AGENTS_DIR/scripts/cli.py" init
+```
+
+`init` 会依次完成以下实事：
+1. 检查 `zellij` 命令是否可用
+2. 确保数据目录（`~/.config/zellij/talk/`）存在
+3. 若 `registry.json` 不存在，自动从模板复制一份
+4. 执行 `prune`，清理已离线的僵尸 Agent
+
+**第 2 步：询问用户当前 Agent 的职责**
+
+`init` **不会**自动注册。执行完 `init` 后，你必须向用户确认：
+
+> "你好！在注册之前，我想确认一下你在这个面板中主要负责什么工作？比如：写代码（coder）、代码审查（reviewer）、制定计划（planner）、测试（tester）等。"
+
+**第 3 步：根据职责注册**
+
+根据用户回答的角色执行注册：
+
+```bash
+# 自动生成名字（例如 kimi_coder_Alex）
+python3 "$AGENTS_DIR/scripts/cli.py" auto-register <role>
+
+# 或手动指定名字
+python3 "$AGENTS_DIR/scripts/cli.py" register <agent_name>
+```
+
+> 若不在 Zellij 环境中，`auto-register` / `register` 会提示错误，这是正常的，因为只有在 Zellij 面板内才能注册。
 
 ## 快速开始
 
