@@ -160,6 +160,16 @@ python3 "$AGENTS_DIR/scripts/cli.py" to <agent_name> <内容> --no-enter
 
 **惰性清理**：如果目标 pane 已关闭或 session 不存在，会自动从 `registry.json` 中移除该 Agent，并提示用户。
 
+### 直接回复 pane（无需注册）
+
+如果接收方未注册，或者你知道对方的 `session:pane_id`，可以直接发送：
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" reply rectangular-viola:1 "你好"
+```
+
+消息同样会自动附带来源标识。
+
 ### 读取 Agent 输出
 
 ```bash

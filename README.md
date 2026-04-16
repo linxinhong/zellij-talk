@@ -108,6 +108,12 @@ python3 "$AGENTS_DIR/scripts/cli.py" to kimi_coder_Alex "帮我实现一个 LRU 
 帮我实现一个 LRU Cache，用 Rust 写
 ```
 
+如果对方未注册，也可以直接通过 `session:pane_id` 回复：
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" reply rectangular-viola:1 "收到，继续"
+```
+
 # 读取某个 Agent 的最新输出（默认 100 行）
 python3 "$AGENTS_DIR/scripts/cli.py" from claude_reviewer_Blob
 
@@ -164,6 +170,7 @@ python3 "$AGENTS_DIR/scripts/cli.py" unregister-all --current-session
 | `unregister-all` | `unregister-all [--current-session]` | 批量注销 |
 | `auto-register` | `auto-register [role]` | 自动生成名字并注册 |
 | `to` | `to <agent_name> <内容> [--no-enter]` | 发送消息（pane 已关闭时自动清理） |
+| `reply` | `reply <session:pane_id> <内容> [--no-enter]` | 直接向 pane 发消息（无需注册） |
 | `from` | `from <agent_name> [行数] [--ansi]` | 读取输出（pane 已关闭时自动清理） |
 | `watch` | `watch <agent_name> [关键词]` | 监听输出 |
 | `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
