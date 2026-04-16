@@ -200,10 +200,12 @@ python3 "$AGENTS_DIR/scripts/cli.py" watch claude_reviewer_Blob "审查完成"
 ### 阻塞等待关键词
 
 ```bash
-python3 "$AGENTS_DIR/scripts/cli.py" wait <agent_name> <关键词> [超时秒数]
+python3 "$AGENTS_DIR/scripts/cli.py" wait <agent_name> <标签> [超时秒数]
 # 默认超时 60 秒
-python3 "$AGENTS_DIR/scripts/cli.py" wait claude_reviewer_Blob "审查完成" 120
+python3 "$AGENTS_DIR/scripts/cli.py" wait claude_reviewer_Blob "<talk>审查完成</talk>" 120
 ```
+
+**说明**：`wait` 只精确匹配 `<talk>标签</talk>` 格式。如果传入的标签不带 `<talk>`，会自动包裹。推荐在要求 Agent 输出完成信号时使用这种格式，避免与普通文字混淆。
 
 ### 自动注册 Agent
 
@@ -286,8 +288,8 @@ python3 "$AGENTS_DIR/scripts/cli.py" review [source] [target]
 | `to` | `to <agent_name> <内容> [--no-enter]` | 向已注册 Agent 发消息 |
 | `reply` | `reply <session:pane_id> <内容> [--no-enter]` | 直接向 pane 发消息（无需注册） |
 | `from` | `from <agent_name> [行数] [--ansi]` | 读取 Agent 输出 |
-| `watch` | `watch <agent_name> [关键词]` | 监听输出 |
-| `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
+| `watch` | `watch <agent_name> [标签]` | 监听输出 |
+| `wait` | `wait <agent_name> <标签> [超时秒数]` | 阻塞等待 <talk>标签</talk> |
 | `list` | `list [--json]` | 列出已注册 Agent |
 | `health` | `health [agent_name]` | 健康检查 |
 | `memory` | `memory [--session] [--pane] [--agent] [--last N] [--json]` | 查询对话历史 |

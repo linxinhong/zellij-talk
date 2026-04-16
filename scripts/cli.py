@@ -27,6 +27,18 @@ def _build_sender_prefix() -> str:
     return f"[来自 {name}]"
 
 
+def _match_keyword(text: str, keyword: str) -> str | None:
+    """Match only exact <talk>keyword</talk> tags. If keyword is not wrapped, wrap it automatically."""
+    raw = keyword.strip()
+    if raw.startswith("<talk>") and raw.endswith("</talk>"):
+        tag = raw
+    else:
+        tag = f"<talk>{raw}</talk>"
+    if tag in text:
+        return tag
+    return None
+
+
 def _err(msg: str) -> None:
     print(f"❌ {msg}", file=sys.stderr)
 
@@ -244,7 +256,7 @@ def cmd_watch(args: argparse.Namespace) -> int:
         _err(f"[{name}] 未注册")
         return 1
     _info(f"👀 监听 [{name} @ {meta['pane_id']} / {meta['session']}] ...")
-    _info(f"   关键词: {keyword or '（不过滤）'}")
+    _info(f"   标签: {keyword or '（不过滤）'}")
 
     import subprocess
 
@@ -268,9 +280,11 @@ def cmd_watch(args: argparse.Namespace) -> int:
                 text = "\n".join(viewport)
                 if not keyword:
                     print(text)
-                elif keyword in text:
-                    _info(f"🎯 [{name}] 检测到关键词: {keyword}")
-                    print(text)
+                else:
+                    matched = _match_keyword(text, keyword)
+                    if matched:
+                        _info(f"🎯 [{name}] 检测到标签: {matched}")
+                        print(text)
             except json.JSONDecodeError:
                 continue
     except KeyboardInterrupt:
@@ -286,7 +300,7 @@ def cmd_wait(args: argparse.Namespace) -> int:
     timeout = args.timeout
     interval = 2
     lines = 100
-    _info(f"⏳ 等待 [{name}] 输出中出现关键词: '{keyword}' (超时 {timeout}s)")
+    _info(f"⏳ 等待 [{name}] 输出中出现标签: '{keyword}' (超时 {timeout}s)")
     sys.stdout.flush()
     elapsed = 0
     while elapsed < timeout:
@@ -297,15 +311,16 @@ def cmd_wait(args: argparse.Namespace) -> int:
         text = dump_screen(meta["session"], meta["pane_id"], ansi=False)
         output_lines = text.splitlines()
         output = "\n".join(output_lines[-lines:])
-        if keyword in output:
-            _info(f"🎯 检测到关键词: {keyword}")
+        matched = _match_keyword(output, keyword)
+        if matched:
+            _info(f"🎯 检测到标签: {matched}")
             for line in output_lines:
-                if keyword in line:
+                if matched in line:
                     print(line)
             return 0
         time.sleep(interval)
         elapsed += interval
-    _err(f"超时 ({timeout}s)，未检测到关键词: {keyword}")
+    _err(f"超时 ({timeout}s)，未检测到标签: {keyword}")
     return 1
 
 
