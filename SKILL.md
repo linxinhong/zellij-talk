@@ -36,13 +36,16 @@ zellij-talk/
 ├── scripts/                    # 核心原语
 │   ├── register.sh            # 注册当前面板为 Agent
 │   ├── unregister.sh          # 注销 Agent
-│   ├── to.sh                  # 向 Agent 发消息
+│   ├── auto-register.sh       # 自动生成名字并注册
+│   ├── to.sh                  # 向 Agent 发消息（支持管道）
 │   ├── from.sh                # 读取 Agent 输出
 │   ├── watch.sh               # 监听 Agent 输出
-│   └── list.sh                # 列出已注册 Agent
-└── skills/                    # 业务 Skill
-    ├── review.sh              # review 工作流
-    └── broadcast.sh           # 广播消息
+│   ├── wait.sh                # 阻塞等待关键词
+│   ├── list.sh                # 列出已注册 Agent
+│   ├── health.sh              # Agent 健康检查
+│   ├── prune.sh               # 清理僵尸 Agent
+│   ├── send-file.sh           # 发送文件给 Agent
+│   └── multicast.sh           # 多播消息
 ```
 
 ## 快速开始
@@ -78,24 +81,35 @@ source ~/.zshrc  # 或 source ~/.bashrc
 
 ### 3. Agent 命名规范
 
-格式：`{agent_tool}_{main_role}_{4位唯一ID}`
+格式：`{agent_tool}_{main_role}_{可记忆英文名}`
 
 示例：
-- `claude_reviewer_23A3` — Claude Code，负责代码审查
-- `kimi_coder_F1B9` — Kimi Code，负责功能编写
-- `opencode_planner_0C4E` — OpenCode，负责整理计划
+- `claude_reviewer_Blob` — Claude Code，负责代码审查
+- `kimi_coder_Alex` — Kimi Code，负责功能编写
+- `opencode_planner_Cici` — OpenCode，负责整理计划
+
+**注册前必须先确认职责**：在为当前 Agent 生成名字之前，应主动询问用户该 Agent 的主要职责（如 coder、reviewer、planner、tester 等），再根据职责生成规范名字。
 
 ## 核心原语
 
 ### 注册 Agent
 
-在目标面板中执行：
+**第一步：询问职责**
+
+注册前先与用户确认当前 Agent 的主要职责，例如：
+> "你好！在注册之前，我想确认一下你在这个面板中主要负责什么工作？比如：写代码（coder）、代码审查（reviewer）、制定计划（planner）、测试（tester）等。"
+
+**第二步：根据职责生成规范名字**
+
+格式：`{tool}_{role}_{可记忆英文名}`
+
+**第三步：执行注册**
 
 ```bash
 ~/.agents/skills/zellij-talk/scripts/register.sh <agent_name>
 ```
 
-例如：`~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_23A3`
+例如：`~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_Blob`
 
 ### 列出已注册 Agent
 
@@ -118,9 +132,12 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ### 读取 Agent 输出
 
 ```bash
-~/.agents/skills/zellij-talk/scripts/from.sh <agent_name> [行数]
+~/.agents/skills/zellij-talk/scripts/from.sh <agent_name> [行数] [--ansi]
 # 默认 100 行
 ~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_23A3 50
+
+# 保留 ANSI 颜色
+~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_23A3 50 --ansi
 ```
 
 ### 监听 Agent 输出
@@ -131,10 +148,56 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ~/.agents/skills/zellij-talk/scripts/watch.sh claude_reviewer_23A3 "审查完成"
 ```
 
+### 阻塞等待关键词
+
+```bash
+~/.agents/skills/zellij-talk/scripts/wait.sh <agent_name> <关键词> [超时秒数]
+# 默认超时 60 秒
+~/.agents/skills/zellij-talk/scripts/wait.sh claude_reviewer_23A3 "审查完成" 120
+```
+
+### 自动注册 Agent
+
+```bash
+~/.agents/skills/zellij-talk/scripts/auto-register.sh [role]
+# 自动生成名字，如 kimi_coder_XXXX
+~/.agents/skills/zellij-talk/scripts/auto-register.sh reviewer
+```
+
+### 健康检查
+
+```bash
+~/.agents/skills/zellij-talk/scripts/health.sh
+# 检查所有 Agent
+~/.agents/skills/zellij-talk/scripts/health.sh kimi_coder_88F7
+```
+
+### 清理僵尸 Agent
+
+```bash
+~/.agents/skills/zellij-talk/scripts/prune.sh --dry-run
+~/.agents/skills/zellij-talk/scripts/prune.sh
+```
+
+### 发送文件
+
+```bash
+~/.agents/skills/zellij-talk/scripts/send-file.sh <agent_name> <文件路径>
+~/.agents/skills/zellij-talk/scripts/send-file.sh kimi_coder_88F7 src/main.rs
+```
+
+### 多播消息
+
+```bash
+~/.agents/skills/zellij-talk/scripts/multicast.sh "agent1,agent2" "消息内容"
+```
+
 ### 注销 Agent
 
 ```bash
 ~/.agents/skills/zellij-talk/scripts/unregister.sh <agent_name>
+# 一键注销全部（当前 session）
+~/.agents/skills/zellij-talk/scripts/unregister-all.sh --current-session
 ```
 
 ## 工作模式
@@ -144,9 +207,10 @@ source ~/.zshrc  # 或 source ~/.bashrc
 适用于复杂项目，需要多个 AI 实时沟通：
 
 1. **初始化**：用户在 Zellij 中创建多个面板
-2. **注册**：各 AI 分别注册到工作区
-3. **协作**：通过 `to.sh` / `from.sh` 实时沟通
-4. **完成**：任务完成后注销各 Agent
+2. **确认职责**：询问每个 Agent 的主要职责（coder / reviewer / planner / tester 等）
+3. **注册**：根据职责生成规范名字，各 AI 分别注册到工作区
+4. **协作**：通过 `to.sh` / `from.sh` 实时沟通
+5. **完成**：任务完成后注销各 Agent
 
 **示例场景**：
 - 项目重构：一个 AI 写代码，一个 AI 审查
@@ -193,7 +257,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ### 工作流 2：广播通知
 
 ```bash
-~/.agents/skills/zellij-talk/skills/broadcast.sh "项目有紧急变更，请停止当前任务"
+~/.agents/skills/zellij-talk/scripts/broadcast.sh "项目有紧急变更，请停止当前任务"
 ```
 
 ### 工作流 3：监听完成信号
@@ -210,7 +274,6 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ```bash
 export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
 export SCRIPTS="$AGENTS_DIR/scripts"
-export SKILLS="$AGENTS_DIR/skills"
 export REGISTRY="$AGENTS_DIR/registry.json"
 ```
 
@@ -236,6 +299,12 @@ export REGISTRY="$AGENTS_DIR/registry.json"
 2. Zellij session 已断开
 3. pane_id 发生变化（重新注册）
 
+快速诊断：
+```bash
+~/.agents/skills/zellij-talk/scripts/health.sh
+~/.agents/skills/zellij-talk/scripts/prune.sh
+```
+
 ### 读取输出为空
 
 可能原因：
@@ -252,7 +321,7 @@ export REGISTRY="$AGENTS_DIR/registry.json"
 
 ### 添加新业务 Skill
 
-在 `skills/` 目录创建新脚本：
+在 `scripts/` 目录创建新脚本：
 
 ```bash
 #!/bin/bash
