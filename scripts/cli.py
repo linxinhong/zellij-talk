@@ -7,9 +7,10 @@ import sys
 import time
 from typing import Any
 
-from . import __version__
-from .registry import get_agent, list_agents, load_registry, register_agent, save_registry, unregister_agent
-from .zellij import dump_screen, get_current_pane_id, get_current_session, has_zellij_env, is_pane_alive, rename_pane, send_text
+__version__ = "1.1.0"
+
+from registry import get_agent, list_agents, load_registry, register_agent, save_registry, unregister_agent
+from zellij import dump_screen, get_current_pane_id, get_current_session, has_zellij_env, is_pane_alive, rename_pane, send_text
 
 
 def _err(msg: str) -> None:

@@ -19,7 +19,7 @@
 克隆仓库到本地，建议放到 `~/.agents/skills/zellij-talk`：
 
 ```bash
-git clone https://github.com/yourname/zellij-talk.git ~/.agents/skills/zellij-talk
+git clone https://github.com/linxinhong/zellij-talk.git ~/.agents/skills/zellij-talk
 ```
 
 在 `~/.zshrc` 或 `~/.bashrc` 中添加环境变量：
@@ -48,30 +48,12 @@ zellij-talk/
 ├── README.md                 # 本文件
 ├── SKILL.md                  # Kimi Skill 说明
 ├── .gitignore                # 排除运行时文件
-├── pyproject.toml            # Python 项目配置
 ├── registry.json.example     # 注册表模板
-├── src/
-│   └── zellij_talk/          # Python 核心实现
-│       ├── __init__.py
-│       ├── registry.py       # 注册表管理（原子写、无 jq 依赖）
-│       ├── zellij.py         # Zellij CLI 封装
-│       └── cli.py            # 统一命令行入口
-└── scripts/                  # 薄包装脚本（向后兼容）
-    ├── register.sh
-    ├── unregister.sh
-    ├── unregister-all.sh
-    ├── auto-register.sh
-    ├── to.sh
-    ├── from.sh
-    ├── watch.sh
-    ├── wait.sh
-    ├── list.sh
-    ├── health.sh
-    ├── prune.sh
-    ├── send-file.sh
-    ├── multicast.sh
-    ├── broadcast.sh
-    └── review.sh
+└── scripts/                  # Python 核心脚本
+    ├── __init__.py
+    ├── registry.py           # 注册表管理（原子写、无 jq 依赖）
+    ├── zellij.py             # Zellij CLI 封装
+    └── cli.py                # 统一命令行入口
 ```
 
 ## 快速开始
@@ -100,40 +82,40 @@ opencode_planner_Cici  # OpenCode，负责整理计划
 
 ```bash
 # Kimi Code 面板
-~/.agents/skills/zellij-talk/scripts/register.sh kimi_coder_Alex
+python3 "$AGENTS_DIR/scripts/cli.py" register kimi_coder_Alex
 
 # Claude Code 面板
-~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_Blob
+python3 "$AGENTS_DIR/scripts/cli.py" register claude_reviewer_Blob
 ```
 
 ### 3. 发送与读取消息
 
 ```bash
 # 向某个 Agent 发送消息
-~/.agents/skills/zellij-talk/scripts/to.sh kimi_coder_Alex "帮我实现一个 LRU Cache，用 Rust 写"
+python3 "$AGENTS_DIR/scripts/cli.py" to kimi_coder_Alex "帮我实现一个 LRU Cache，用 Rust 写"
 
 # 读取某个 Agent 的最新输出（默认 100 行）
-~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_Blob
+python3 "$AGENTS_DIR/scripts/cli.py" from claude_reviewer_Blob
 
 # 列出所有已注册 Agent
-~/.agents/skills/zellij-talk/scripts/list.sh
+python3 "$AGENTS_DIR/scripts/cli.py" list
 ```
 
 ### 4. 运行示例工作流
 
 ```bash
 # 将 kimi_coder 的输出转发给 claude_reviewer 审查
-~/.agents/skills/zellij-talk/scripts/review.sh
+python3 "$AGENTS_DIR/scripts/cli.py" review
 ```
 
 ### 5. 注销 Agent
 
 ```bash
 # 注销单个 Agent
-~/.agents/skills/zellij-talk/scripts/unregister.sh kimi_coder_Alex
+python3 "$AGENTS_DIR/scripts/cli.py" unregister kimi_coder_Alex
 
 # 或一键注销当前 session 的所有 Agent
-~/.agents/skills/zellij-talk/scripts/unregister-all.sh --current-session
+python3 "$AGENTS_DIR/scripts/cli.py" unregister-all --current-session
 ```
 
 ## 工作模式
@@ -144,7 +126,7 @@ opencode_planner_Cici  # OpenCode，负责整理计划
 
 1. 在 Zellij 中创建多个面板
 2. 各面板分别注册 Agent
-3. 通过 `to.sh` / `from.sh` 实时沟通
+3. 通过 `python3 scripts/cli.py to` / `from` 实时沟通
 4. 任务完成后注销
 
 ### 流水线模式
@@ -157,43 +139,27 @@ opencode_planner_Cici  # OpenCode，负责整理计划
  Planner    Coder   Tester   Reporter
 ```
 
-## 核心脚本参考
+## 核心命令参考
 
-| 脚本 | 用法 | 说明 |
-|------|------|------|
-| `register.sh` | `register.sh <agent_name>` | 注册当前面板为 Agent |
-| `unregister.sh` | `unregister.sh <agent_name>` | 注销指定 Agent |
-| `unregister-all.sh` | `unregister-all.sh [--current-session]` | 批量注销 |
-| `auto-register.sh` | `auto-register.sh [role]` | 自动生成名字并注册 |
-| `to.sh` | `to.sh <agent_name> <内容> [--no-enter]` | 发送消息（ pane 已关闭时会自动清理注册表） |
-| `from.sh` | `from.sh <agent_name> [行数] [--ansi]` | 读取输出（ pane 已关闭时会自动清理注册表） |
-| `watch.sh` | `watch.sh <agent_name> [关键词]` | 监听输出 |
-| `wait.sh` | `wait.sh <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
-| `list.sh` | `list.sh [--json]` | 列出已注册 Agent |
-| `health.sh` | `health.sh [agent_name]` | 健康检查 |
-| `prune.sh` | `prune.sh [--dry-run]` | 清理僵尸 Agent |
-| `send-file.sh` | `send-file.sh <agent_name> <file_path>` | 发送文件 |
-| `multicast.sh` | `multicast.sh "agent1,agent2" "消息"` | 多播消息 |
-| `broadcast.sh` | `broadcast.sh "消息"` | 广播给所有 Agent |
-| `review.sh` | `review.sh [source] [target]` | 代码审查工作流示例 |
+所有命令统一通过 `python3 "$AGENTS_DIR/scripts/cli.py" <子命令>` 调用：
 
-## 直接使用 Python CLI
-
-如果你不想通过 `scripts/*.sh` 调用，也可以直接使用 Python 模块：
-
-```bash
-# 设置 PYTHONPATH
-export PYTHONPATH="$AGENTS_DIR/src:$PYTHONPATH"
-
-# 列出 Agent
-python3 -m zellij_talk.cli list
-
-# 发送消息
-python3 -m zellij_talk.cli to kimi_coder_Alex "你好"
-
-# 清理僵尸 Agent
-python3 -m zellij_talk.cli prune --dry-run
-```
+| 子命令 | 用法 | 说明 |
+|--------|------|------|
+| `register` | `register <agent_name>` | 注册当前面板为 Agent |
+| `unregister` | `unregister <agent_name>` | 注销指定 Agent |
+| `unregister-all` | `unregister-all [--current-session]` | 批量注销 |
+| `auto-register` | `auto-register [role]` | 自动生成名字并注册 |
+| `to` | `to <agent_name> <内容> [--no-enter]` | 发送消息（pane 已关闭时自动清理） |
+| `from` | `from <agent_name> [行数] [--ansi]` | 读取输出（pane 已关闭时自动清理） |
+| `watch` | `watch <agent_name> [关键词]` | 监听输出 |
+| `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
+| `list` | `list [--json]` | 列出已注册 Agent |
+| `health` | `health [agent_name]` | 健康检查 |
+| `prune` | `prune [--dry-run]` | 清理僵尸 Agent |
+| `send-file` | `send-file <agent_name> <file_path>` | 发送文件 |
+| `multicast` | `multicast "agent1,agent2" "消息"` | 多播消息 |
+| `broadcast` | `broadcast "消息"` | 广播给所有 Agent |
+| `review` | `review [source] [target]` | 代码审查工作流示例 |
 
 ## 开发规范
 
@@ -202,41 +168,57 @@ python3 -m zellij_talk.cli prune --dry-run
 1. **面板无关**：不硬编码 `pane_id`，所有路由通过 Agent 名动态查找
 2. **双重定位**：`session` + `pane_id` 缺一不可（跨 session 的 `pane_id` 可能重复）
 3. **唯一命名**：同一工作区内不允许重复的 Agent 名
-4. **自动清理**：对 Agent 操作时优先检查 pane 存活状态，失效则自动从注册表移除
+4. **自动清理**：操作 Agent 前自动检查 pane 存活状态，失效则自动移除注册记录
 
 示例模板：
 
 ```bash
 #!/bin/bash
 set -euo pipefail
-SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
+AGENTS_DIR="${AGENTS_DIR:-$HOME/.agents/skills/zellij-talk}"
 
 SOURCE_AGENT="kimi_coder_Alex"
 TARGET_AGENT="claude_reviewer_Blob"
 
-CONTENT=$("$SCRIPTS/from.sh" "$SOURCE_AGENT" 80)
-"$SCRIPTS/to.sh" "$TARGET_AGENT" "处理后的内容：$CONTENT"
+CONTENT=$(python3 "$AGENTS_DIR/scripts/cli.py" from "$SOURCE_AGENT" 80)
+python3 "$AGENTS_DIR/scripts/cli.py" to "$TARGET_AGENT" "处理后的内容：$CONTENT"
+```
+
+也可以直接用 Python 写扩展：
+
+```python
+import sys
+sys.path.insert(0, "scripts")
+from registry import list_agents
+from zellij import dump_screen, send_text
 ```
 
 ## 故障排除
 
 ### "未检测到 Zellij 环境变量"
 
-必须在 Zellij 面板内执行 `register.sh`。直接在普通终端运行会报此错误。
+必须在 Zellij 面板内执行 `register`。直接在普通终端运行会报此错误。
 
 ### "Agent 未注册"
 
 ```bash
-~/.agents/skills/zellij-talk/scripts/list.sh
+python3 "$AGENTS_DIR/scripts/cli.py" list
 ```
 
 确认目标 Agent 已在对应面板注册。如果 pane 已关闭但记录残留，运行：
 
 ```bash
-~/.agents/skills/zellij-talk/scripts/prune.sh
+python3 "$AGENTS_DIR/scripts/cli.py" prune
 ```
 
-**注意**：现在 `to.sh`、`from.sh`、`broadcast.sh`、`multicast.sh` 会在目标 pane 不存在时**自动清理**注册表，因此通常无需手动运行 `prune.sh`。
+**注意**：`to`、`from`、`broadcast`、`multicast` 会在目标 pane 不存在时**自动清理**注册表，因此通常无需手动运行 `prune`。
+
+### 读取输出为空
+
+可能原因：
+1. 面板尚未产生输出
+2. pane_id 已失效
+3. 需要增加行数：`python3 "$AGENTS_DIR/scripts/cli.py" from <agent> 200`
 
 ## License
 
