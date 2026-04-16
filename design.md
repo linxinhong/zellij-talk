@@ -61,16 +61,16 @@ ruby
 ├── scripts/                    # 核心原语脚本（稳定层，轻易不改）
 │   ├── register.sh             # Agent 注册
 │   ├── unregister.sh           # Agent 注销
-│   ├── to.sh                   # 向 Agent 发送内容
+│   ├── auto-register.sh        # 自动生成名字并注册
+│   ├── to.sh                   # 向 Agent 发送内容（支持管道）
 │   ├── from.sh                 # 读取 Agent 输出
 │   ├── watch.sh                # 实时监听 Agent 输出
-│   └── list.sh                 # 列出所有已注册 Agent
-│
-├── skills/                     # 业务 Skill（变化层，按需扩展）
-│   ├── review.sh               # 读取 kimi 输出 → 发给 claude 审查
-│   ├── todo.sh                 # 读取 claude 结果 → 发给 opencode 整理
-│   ├── broadcast.sh            # 广播消息给所有已注册 Agent
-│   └── ...                     # 自定义 Skill 无限扩展
+│   ├── wait.sh                 # 阻塞等待关键词
+│   ├── list.sh                 # 列出所有已注册 Agent
+│   ├── health.sh               # Agent 健康检查
+│   ├── prune.sh                # 清理僵尸 Agent
+│   ├── send-file.sh            # 发送文件给 Agent
+│   └── multicast.sh            # 多播消息给指定 Agent
 │
 └── registry.json               # 运行时 Agent 注册表（由脚本维护）
 环境变量
@@ -193,42 +193,87 @@ SESSION=$(echo "$META"  | jq -r '.session')
 
 zellij -s "$SESSION" action dump-screen \
   --pane-id "$PANE_ID" --full | tail -n "$LINES"
-scripts/watch.sh — 实时监听某个 Agent 的输出
+scripts/wait.sh — 阻塞等待关键词
 bash
 #!/bin/bash
-# 用法: watch.sh <agent_name> [关键词，检测到时执行回调]
-# 例如: watch.sh claude_reviewer_23A3 "Tests passed"
+# 用法: wait.sh <agent_name> <关键词> [超时秒数，默认 60]
+
+set -uo pipefail
+SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
+
+AGENT_NAME="${1:-}"
+KEYWORD="${2:-}"
+TIMEOUT="${3:-60}"
+INTERVAL=2
+LINES=100
+
+echo "⏳ 等待 [$AGENT_NAME] 输出中出现关键词: '$KEYWORD' (超时 ${TIMEOUT}s)"
+
+ELAPSED=0
+while [[ $ELAPSED -lt $TIMEOUT ]]; do
+  OUTPUT=$("$SCRIPTS/from.sh" "$AGENT_NAME" "$LINES" 2>/dev/null) || true
+  if echo "$OUTPUT" | grep -q "$KEYWORD"; then
+    echo "🎯 检测到关键词: $KEYWORD"
+    echo "$OUTPUT" | grep "$KEYWORD"
+    exit 0
+  fi
+  sleep "$INTERVAL"
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+echo "⏰ 超时 (${TIMEOUT}s)，未检测到关键词: $KEYWORD"
+exit 1
+scripts/health.sh — Agent 健康检查
+bash
+#!/bin/bash
+# 用法: health.sh [agent_name]
+# 无参数时检查所有已注册 Agent
 
 set -euo pipefail
 REGISTRY="${AGENTS_REGISTRY:-$HOME/.agents/skills/zellij-talk/registry.json}"
 
+TARGET_AGENT="${1:-}"
+if [[ -n "$TARGET_AGENT" ]]; then
+  META=$(jq -e --arg n "$TARGET_AGENT" '.[$n]' "$REGISTRY" 2>/dev/null) || {
+    echo "❌ [$TARGET_AGENT] 未注册"
+    exit 1
+  }
+  # ... 检查逻辑
+else
+  # ... 遍历检查所有 Agent
+fi
+scripts/prune.sh — 清理僵尸 Agent
+bash
+#!/bin/bash
+# 用法: prune.sh [--dry-run]
+# 扫描注册表，删除 session/pane 已失效的记录
+
+set -euo pipefail
+REGISTRY="${AGENTS_REGISTRY:-$HOME/.agents/skills/zellij-talk/registry.json}"
+# 通过 dump-screen 检测每个 Agent 的 session/pane 是否存活
+# 失效则删除记录
+scripts/send-file.sh — 发送文件
+bash
+#!/bin/bash
+# 用法: send-file.sh <agent_name> <file_path>
+# 读取文件并自动包裹代码块，通过 to.sh 发送
+
+set -euo pipefail
+SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
 AGENT_NAME="$1"
-KEYWORD="${2:-}"
+FILE_PATH="$2"
+# ... 推断语言、包裹代码块、调用 to.sh
+scripts/multicast.sh — 多播消息
+bash
+#!/bin/bash
+# 用法: multicast.sh "agent1,agent2" "消息内容"
 
-META=$(jq -e --arg n "$AGENT_NAME" '.[$n]' "$REGISTRY" 2>/dev/null) || {
-  echo "❌ [$AGENT_NAME] 未注册"
-  exit 1
-}
-
-PANE_ID=$(echo "$META" | jq -r '.pane_id')
-SESSION=$(echo "$META"  | jq -r '.session')
-
-echo "👀 监听 [$AGENT_NAME @ $PANE_ID / $SESSION] ..."
-echo "   关键词: ${KEYWORD:-（不过滤）}"
-
-zellij -s "$SESSION" subscribe \
-  --pane-id "$PANE_ID" --format json | \
-while IFS= read -r line; do
-  text=$(echo "$line" | jq -r '.viewport[]?.text // empty' 2>/dev/null)
-  [[ -z "$text" ]] && continue
-
-  if [[ -z "$KEYWORD" ]]; then
-    echo "$text"
-  elif echo "$text" | grep -q "$KEYWORD"; then
-    echo "🎯 [$AGENT_NAME] 检测到关键词: $KEYWORD"
-    echo "$text"
-    # 可在此处插入回调逻辑，例如触发下游 Skill
-  fi
+set -euo pipefail
+SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
+IFS=',' read -ra AGENTS <<< "$1"
+for AGENT in "${AGENTS[@]}"; do
+  AGENT=$(echo "$AGENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  "$SCRIPTS/to.sh" "$AGENT" "$2"
 done
 scripts/list.sh — 列出所有已注册 Agent
 bash
@@ -300,7 +345,7 @@ bash
   "帮我实现一个 LRU Cache，用 Rust 写"
 
 # 调用 Skill（组合多个 Agent 的协作）
-~/.agents/skills/zellij-talk/skills/review.sh
+~/.agents/skills/zellij-talk/scripts/review.sh
 
 # 后台监听某个 Agent，检测到完成信号时触发下游
 ~/.agents/skills/zellij-talk/scripts/watch.sh \

@@ -1,0 +1,7 @@
+{
+  "agent_name_example": {
+    "pane_id": "terminal_0",
+    "session": "zellij-session-name",
+    "registered": "2026-04-16T09:00:00+08:00"
+  }
+}

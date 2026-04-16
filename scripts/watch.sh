@@ -27,10 +27,11 @@ SESSION=$(echo "$META" | jq -r '.session')
 echo "👀 监听 [$AGENT_NAME @ $PANE_ID / $SESSION] ..."
 echo "   关键词: ${KEYWORD:-（不过滤）}"
 
-zellij -s "$SESSION" subscribe \
+zellij --session "$SESSION" subscribe \
   --pane-id "$PANE_ID" --format json | \
 while IFS= read -r line; do
-  text=$(echo "$line" | jq -r '.viewport[]?.text // empty' 2>/dev/null)
+  # viewport 是字符串数组，不是对象数组
+  text=$(echo "$line" | jq -r '.viewport // empty | join("\n")' 2>/dev/null)
   [[ -z "$text" ]] && continue
 
   if [[ -z "$KEYWORD" ]]; then

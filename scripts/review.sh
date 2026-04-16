@@ -6,7 +6,6 @@
 set -euo pipefail
 
 SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
-SKILLS="$HOME/.agents/skills/zellij-talk/skills"
 
 # 默认 Agent 名（可配置）
 SOURCE_AGENT="${1:-kimi_coder_F1B9}"
