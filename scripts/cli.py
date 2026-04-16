@@ -156,7 +156,7 @@ def cmd_auto_register(args: argparse.Namespace) -> int:
     if ret == 0:
         _info("")
         _info(f"💡 提示：你可以在其他面板通过以下方式与我通信")
-        _info(f'   to.sh {chosen} "你好"')
+        _info(f'   python3 scripts/cli.py to {chosen} "你好"')
     return ret
 
 
@@ -242,6 +242,7 @@ def cmd_wait(args: argparse.Namespace) -> int:
     interval = 2
     lines = 100
     _info(f"⏳ 等待 [{name}] 输出中出现关键词: '{keyword}' (超时 {timeout}s)")
+    sys.stdout.flush()
     elapsed = 0
     while elapsed < timeout:
         meta = _resolve_agent(name, auto_prune=False)
