@@ -6,18 +6,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
-def _get_registry_path() -> Path:
-    env = os.environ.get("AGENTS_REGISTRY")
-    if env:
-        return Path(env)
-    # Infer project root from the location of this script (scripts/registry.py)
-    default = Path(__file__).resolve().parent.parent / "registry.json"
-    return default
+from paths import get_registry_path
 
 
 def load_registry() -> dict[str, Any]:
-    path = _get_registry_path()
+    path = get_registry_path()
     if not path.exists():
         return {}
     try:
@@ -28,7 +21,7 @@ def load_registry() -> dict[str, Any]:
 
 
 def save_registry(data: dict[str, Any]) -> None:
-    path = _get_registry_path()
+    path = get_registry_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
@@ -70,3 +63,12 @@ def get_agent(name: str) -> dict[str, Any] | None:
 
 def list_agents() -> dict[str, Any]:
     return load_registry()
+
+
+def find_agent_by_pane(session: str, pane_id: str) -> str | None:
+    """Find agent name by its session and pane_id."""
+    data = load_registry()
+    for name, meta in data.items():
+        if meta.get("session") == session and meta.get("pane_id") == pane_id:
+            return name
+    return None
