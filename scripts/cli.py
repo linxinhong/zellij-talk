@@ -12,6 +12,7 @@ __version__ = "1.1.0"
 from registry import get_agent, list_agents, load_registry, register_agent, save_registry, unregister_agent
 from zellij import dump_screen, get_current_pane_id, get_current_session, has_zellij_env, is_pane_alive, rename_pane, send_text
 import logger
+import memory
 
 
 def _build_sender_prefix() -> str:
@@ -351,6 +352,21 @@ def cmd_health(args: argparse.Namespace) -> int:
             check_one(name, meta["pane_id"], meta["session"])
 
 
+def cmd_memory(args: argparse.Namespace) -> int:
+    records = memory.query_memory(
+        session=args.session,
+        pane=args.pane,
+        agent=args.agent,
+        last=args.last,
+    )
+    if args.json:
+        import json as _json
+        print(_json.dumps(records, indent=2, ensure_ascii=False))
+    else:
+        print(memory.format_text(records))
+    return 0
+
+
 def cmd_prune(args: argparse.Namespace) -> int:
     data = list_agents()
     prune_list = []
@@ -532,6 +548,13 @@ def main(argv: list[str] | None = None) -> int:
     p = subparsers.add_parser("health", help="健康检查")
     p.add_argument("agent", nargs="?", help="指定 Agent，不填则检查全部")
 
+    p = subparsers.add_parser("memory", help="查询对话历史记录")
+    p.add_argument("--session", help="按 session 过滤")
+    p.add_argument("--pane", help="按 pane_id 过滤")
+    p.add_argument("--agent", help="按 Agent 名过滤")
+    p.add_argument("--last", type=int, default=20, help="返回最近 N 条，默认 20")
+    p.add_argument("--json", action="store_true", help="以 JSON 输出")
+
     p = subparsers.add_parser("prune", help="清理僵尸 Agent")
     p.add_argument("--dry-run", action="store_true", help="仅预览不删除")
 
@@ -563,6 +586,7 @@ def main(argv: list[str] | None = None) -> int:
         "wait": cmd_wait,
         "list": cmd_list,
         "health": cmd_health,
+        "memory": cmd_memory,
         "prune": cmd_prune,
         "send-file": cmd_send_file,
         "multicast": cmd_multicast,
