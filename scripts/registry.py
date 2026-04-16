@@ -11,7 +11,8 @@ def _get_registry_path() -> Path:
     env = os.environ.get("AGENTS_REGISTRY")
     if env:
         return Path(env)
-    default = Path.home() / ".agents" / "skills" / "zellij-talk" / "registry.json"
+    # Infer project root from the location of this script (scripts/registry.py)
+    default = Path(__file__).resolve().parent.parent / "registry.json"
     return default
 
 

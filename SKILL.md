@@ -48,11 +48,10 @@ zellij-talk/
 
 ### 1. 环境准备
 
-在 `~/.zshrc` 或 `~/.bashrc` 中添加：
+在 `~/.zshrc` 或 `~/.bashrc` 中添加（可选）：
 
 ```bash
 export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
-export AGENTS_REGISTRY="$AGENTS_DIR/registry.json"
 ```
 
 然后重载配置：
@@ -60,6 +59,8 @@ export AGENTS_REGISTRY="$AGENTS_DIR/registry.json"
 ```bash
 source ~/.zshrc  # 或 source ~/.bashrc
 ```
+
+**说明**：`AGENTS_DIR` 仅用于文档示例中的路径引用。`cli.py` 会根据自身所在位置自动找到同目录下的 `registry.json`，因此无论你把项目克隆到 `~/.agents/skills/`、`~/.claude/skills/` 还是其他位置，都能正常工作。如果你需要把注册表放到自定义位置，可以设置 `AGENTS_REGISTRY` 环境变量。
 
 ### 2. 启动协作
 
@@ -294,11 +295,16 @@ python3 "$AGENTS_DIR/scripts/cli.py" watch claude_reviewer_Blob "审查完成" &
 
 ## 脚本路径常量
 
-技能内部使用以下路径常量：
+技能内部使用以下路径常量（仅作文档示例参考）：
 
 ```bash
 export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
-export REGISTRY="$AGENTS_DIR/registry.json"
+```
+
+实际运行时，`registry.json` 默认位于 `cli.py` 所在目录的上一级（即项目根目录）。如需自定义，可设置：
+
+```bash
+export AGENTS_REGISTRY="/custom/path/registry.json"
 ```
 
 ## 故障排除

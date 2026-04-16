@@ -22,11 +22,10 @@
 git clone https://github.com/linxinhong/zellij-talk.git ~/.agents/skills/zellij-talk
 ```
 
-在 `~/.zshrc` 或 `~/.bashrc` 中添加环境变量：
+在 `~/.zshrc` 或 `~/.bashrc` 中添加环境变量（可选）：
 
 ```bash
 export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
-export AGENTS_REGISTRY="$AGENTS_DIR/registry.json"
 ```
 
 然后重载配置：
@@ -34,6 +33,8 @@ export AGENTS_REGISTRY="$AGENTS_DIR/registry.json"
 ```bash
 source ~/.zshrc  # 或 source ~/.bashrc
 ```
+
+**说明**：项目不强制要求安装在 `~/.agents/skills/zellij-talk`。`cli.py` 会根据自身所在位置自动找到同目录下的 `registry.json`，因此无论你把它放在 `~/.agents/skills/`、`~/.claude/skills/` 还是其他位置，都能正常工作。只有当你想把注册表放到自定义位置时，才需要设置 `AGENTS_REGISTRY`。
 
 首次使用前，复制注册表模板：
 
@@ -219,6 +220,14 @@ python3 "$AGENTS_DIR/scripts/cli.py" prune
 1. 面板尚未产生输出
 2. pane_id 已失效
 3. 需要增加行数：`python3 "$AGENTS_DIR/scripts/cli.py" from <agent> 200`
+
+## 自定义注册表路径
+
+如果你希望把 `registry.json` 放到其他位置（例如多个项目共享同一个注册表），可以设置环境变量：
+
+```bash
+export AGENTS_REGISTRY="/custom/path/registry.json"
+```
 
 ## License
 
