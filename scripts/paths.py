@@ -45,3 +45,7 @@ def get_session_jsonl_path(session_name: str) -> Path:
 
 def get_all_jsonl_path() -> Path:
     return get_sessions_dir() / "all.jsonl"
+
+
+def get_replies_jsonl_path() -> Path:
+    return get_talk_dir() / "replies.jsonl"

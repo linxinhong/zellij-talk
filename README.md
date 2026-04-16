@@ -286,6 +286,108 @@ python3 "$AGENTS_DIR/scripts/cli.py" memory --agent kimi_coder_Finn --last 5
 python3 "$AGENTS_DIR/scripts/cli.py" memory --session rectangular-viola --json
 ```
 
+## 全局 CLI 入口 `zt`
+
+安装后可以直接使用 `zt` 命令：
+
+```bash
+cd ~/.agents/skills/zellij-talk
+pip install -e .
+```
+
+然后全局使用：
+
+```bash
+zt list
+zt to claude_tester_Gina "hello"
+```
+
+## ACK / DONE / REPLY 协议（文件队列）
+
+zellij-talk 1.2.0 引入了基于文件队列的轻量确认协议，**完全绕开终端 stdin**，避免 ACK 字符乱入发送方面板。
+
+协议核心：共享文件 `~/.config/zellij/talk/replies.jsonl`
+
+### 发送方
+
+```bash
+zt to claude_tester_Gina "请 review 这段代码" --wait-done --done-timeout 120
+```
+
+发送后，`zt` 会自动监听 `replies.jsonl`，等待对应的 `msg_id` 被标记为 DONE。
+
+### 接收方
+
+收到带 `[MSG_ID:xxx]` 的消息后，**无需调用 `zt to` 回复**。只需在当前面板运行：
+
+```bash
+echo '{"type":"DONE","msg_id":"xxx","from":"claude_tester_Gina"}' >> ~/.config/zellij/talk/replies.jsonl
+```
+
+或者输出包含 `msg_id` 的自然语言，发送方的 `--wait-ack` 同样可以捕获到。
+
+> **关键**：接收方不要调用 `zt to 发送方 "[ACK:xxx]"`，这会往发送方终端打字符，造成乱入。正确做法是直接写 `replies.jsonl` 或在当前面板自然输出。
+
+## Pipeline 编排
+
+用 YAML 定义多 Agent 协作流程：
+
+```yaml
+# pipeline.yaml
+steps:
+  - agent: kimi_coder_Alex
+    action: "实现功能"
+    wait_for: "[DONE]"
+    timeout: 120
+
+  - agent: claude_reviewer_Blob
+    action: "review 代码"
+    wait_for: "[REPLY]"
+    timeout: 120
+```
+
+执行：
+
+```bash
+zt pipeline pipeline.yaml --task "添加用户登录"
+```
+
+`wait_for` 支持：
+- `<talk>完成</talk>` — 内容驱动（subscribe 监听面板输出）
+- `[DONE]` — 消息驱动（监听 `replies.jsonl`）
+- `[REPLY]` — 消息驱动，回复内容自动作为下一步 `{prev_output}` 变量
+
+## Agent 角色与能力
+
+注册时携带角色和能力：
+
+```bash
+zt register kimi_coder_Alex --role coder --capabilities "code,test,debug"
+```
+
+查询：
+
+```bash
+zt list --capabilities
+zt find code   # 按能力查找 Agent
+```
+
+## 离线消息队列
+
+目标 Agent 不在线时，消息自动进入 SQLite 队列。Agent 重新注册后会自动投递。
+
+```bash
+zt inbox [agent]       # 查看未投递消息
+zt inbox --clear       # 清理已投递记录
+```
+
+## Dashboard 与 Stats
+
+```bash
+zt dashboard --follow   # 实时消息流
+zt stats --today        # 今日消息统计
+```
+
 ## 自定义注册表路径
 
 如果你希望把 `registry.json` 放到其他位置（例如多个项目共享同一个注册表），可以设置环境变量：

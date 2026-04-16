@@ -17,7 +17,8 @@ import paths
 
 __version__ = "1.1.0"
 
-from ack import generate_msg_id, inject_msg_id, match_ack, match_done, match_reply
+from ack import generate_msg_id, inject_msg_id
+from reply_queue import append_reply, wait_for_reply
 from pipeline import load_pipeline, resolve_agent_ref
 from msg_queue import clear_delivered, dequeue_for_agent, enqueue, list_undelivered
 from registry import get_agent, list_agents, load_registry, register_agent, replace_agent, save_registry, unregister_agent
@@ -370,8 +371,8 @@ def cmd_to(args: argparse.Namespace) -> int:
     if args.wait_ack:
         _info(f"⏳ 等待 ACK [{msg_id}] ...")
         sys.stdout.flush()
-        found, _ = _wait_subscribe_for(meta, msg_id, args.ack_timeout, match_ack, "ACK")
-        if found:
+        rec = wait_for_reply(msg_id, args.ack_timeout)
+        if rec:
             _info(f"✅ 收到 ACK [{msg_id}]")
         else:
             _warn(f"未收到 ACK [{msg_id}]，消息已转入离线队列")
@@ -381,8 +382,8 @@ def cmd_to(args: argparse.Namespace) -> int:
     if args.wait_done:
         _info(f"⏳ 等待 DONE [{msg_id}] ...")
         sys.stdout.flush()
-        found, _ = _wait_subscribe_for(meta, msg_id, args.done_timeout, match_done, "DONE")
-        if found:
+        rec = wait_for_reply(msg_id, args.done_timeout)
+        if rec:
             _info(f"✅ 收到 DONE [{msg_id}]")
         else:
             _warn(f"未收到 DONE [{msg_id}]，消息已转入离线队列")
@@ -392,9 +393,10 @@ def cmd_to(args: argparse.Namespace) -> int:
     if args.wait_reply:
         _info(f"⏳ 等待 REPLY [{msg_id}] ...")
         sys.stdout.flush()
-        found, payload = _wait_subscribe_for(meta, msg_id, args.reply_timeout, match_reply, "REPLY")
-        if found:
+        rec = wait_for_reply(msg_id, args.reply_timeout)
+        if rec:
             _info(f"✅ 收到 REPLY [{msg_id}]")
+            payload = rec.get("payload")
             if payload:
                 print(payload)
         else:
@@ -867,19 +869,19 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
             step_timeout = step.get("timeout", 60)
             if wait_for == "[DONE]":
                 _info(f"⏳ 等待 [{resolved}] DONE [{msg_id}] (最多 {step_timeout}s)")
-                found, _ = _wait_subscribe_for(meta, msg_id, step_timeout, match_done, "DONE")
-                if not found:
+                rec = wait_for_reply(msg_id, step_timeout)
+                if not rec:
                     _err(f"第 {idx + 1} 步等待 DONE 超时")
                     return 1
                 _info(f"✅ 收到 DONE [{msg_id}]")
             elif wait_for == "[REPLY]":
                 _info(f"⏳ 等待 [{resolved}] REPLY [{msg_id}] (最多 {step_timeout}s)")
-                found, payload = _wait_subscribe_for(meta, msg_id, step_timeout, match_reply, "REPLY")
-                if not found:
+                rec = wait_for_reply(msg_id, step_timeout)
+                if not rec:
                     _err(f"第 {idx + 1} 步等待 REPLY 超时")
                     return 1
                 _info(f"✅ 收到 REPLY [{msg_id}]")
-                variables["prev_output"] = payload or ""
+                variables["prev_output"] = rec.get("payload") or ""
             else:
                 class WaitArgs:
                     agent = resolved

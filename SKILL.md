@@ -9,7 +9,7 @@ description: |
   - 任务分发、并行处理、任务汇报
   - 协调多个 coder/reviewer/planner 协作
   - 任何涉及"面板协作"、"Agent 通信"的场景
-version: 1.1.0
+version: 1.2.0
 ---
 
 > 🚨 **SYSTEM DIRECTIVE — IMMEDIATE ACTION REQUIRED**
@@ -492,6 +492,27 @@ subprocess.run([
     "python3", "scripts/cli.py", "to", "kimi_coder_Alex", "你好"
 ], check=True)
 ```
+
+## 1.2.0 新增功能速览
+
+- **全局 CLI 入口**：安装后可用 `zt` 命令
+- **ACK / DONE / REPLY 文件队列**：基于 `~/.config/zellij/talk/replies.jsonl`，彻底绕开终端 stdin 乱入问题
+- **Pipeline 编排**：YAML 定义多步 Agent 协作
+- **Agent 角色与能力**：注册时携带 `role` 和 `capabilities`，支持动态发现
+- **离线消息队列**：SQLite 持久化，注册自动投递
+- **Dashboard / Stats**：实时消息流与统计分析
+
+## ACK / DONE / REPLY 协议（重要）
+
+当收到带有 `[MSG_ID:xxx]` 的消息时：
+
+> **正确做法**：在当前面板直接输出包含 `msg_id` 的确认文字，或执行以下命令追加到文件队列：
+> ```bash
+> echo '{"type":"ACK","msg_id":"xxx","from":"你的Agent名"}' >> ~/.config/zellij/talk/replies.jsonl
+> ```
+> **错误做法**：不要用 `zt to 发送方 "[ACK:xxx]"` 发回给发送方，这会往对方终端 stdin 注入字符，造成干扰。
+
+发送方的 `--wait-ack` / `--wait-done` / `--wait-reply` 会监听 `replies.jsonl` 文件，而不是等对方面板输出。
 
 ## 设计原则
 
