@@ -221,6 +221,18 @@ python3 "$AGENTS_DIR/scripts/cli.py" health
 python3 "$AGENTS_DIR/scripts/cli.py" health kimi_coder_Alex
 ```
 
+### 查询对话历史
+
+```bash
+python3 "$AGENTS_DIR/scripts/cli.py" memory
+# 查看指定 session 最近 20 条
+python3 "$AGENTS_DIR/scripts/cli.py" memory --session rectangular-viola
+# 查看指定 Agent 最近 5 条
+python3 "$AGENTS_DIR/scripts/cli.py" memory --agent kimi_coder_Finn --last 5
+# JSON 输出
+python3 "$AGENTS_DIR/scripts/cli.py" memory --json
+```
+
 ### 清理僵尸 Agent
 
 ```bash
@@ -278,6 +290,7 @@ python3 "$AGENTS_DIR/scripts/cli.py" review [source] [target]
 | `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
 | `list` | `list [--json]` | 列出已注册 Agent |
 | `health` | `health [agent_name]` | 健康检查 |
+| `memory` | `memory [--session] [--pane] [--agent] [--last N] [--json]` | 查询对话历史 |
 | `prune` | `prune [--dry-run]` | 清理僵尸 Agent |
 | `send-file` | `send-file <agent_name> <文件路径>` | 发送文件 |
 | `multicast` | `multicast "agent1,agent2" "消息"` | 多播消息 |

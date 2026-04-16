@@ -180,6 +180,7 @@ python3 "$AGENTS_DIR/scripts/cli.py" --help
 | `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
 | `list` | `list [--json]` | 列出已注册 Agent |
 | `health` | `health [agent_name]` | 健康检查 |
+| `memory` | `memory [--session] [--pane] [--agent] [--last N] [--json]` | 查询对话历史 |
 | `prune` | `prune [--dry-run]` | 清理僵尸 Agent |
 | `send-file` | `send-file <agent_name> <file_path>` | 发送文件 |
 | `multicast` | `multicast "agent1,agent2" "消息"` | 多播消息 |
@@ -244,6 +245,24 @@ python3 "$AGENTS_DIR/scripts/cli.py" prune
 1. 面板尚未产生输出
 2. pane_id 已失效
 3. 需要增加行数：`python3 "$AGENTS_DIR/scripts/cli.py" from <agent> 200`
+
+## 查询对话历史
+
+所有发送的消息都会自动记录，可以通过 `memory` 命令查询：
+
+```bash
+# 查看最近 20 条全局对话
+python3 "$AGENTS_DIR/scripts/cli.py" memory
+
+# 查看指定 session 的记录
+python3 "$AGENTS_DIR/scripts/cli.py" memory --session rectangular-viola
+
+# 查看指定 Agent 的记录
+python3 "$AGENTS_DIR/scripts/cli.py" memory --agent kimi_coder_Finn --last 5
+
+# JSON 格式输出
+python3 "$AGENTS_DIR/scripts/cli.py" memory --session rectangular-viola --json
+```
 
 ## 自定义注册表路径
 
