@@ -20,7 +20,7 @@ def _ensure_log_file(path: Path, session_name: str) -> None:
             f.write(f"# Zellij Talk Session: {session_name}\n\n")
 
 
-def _get_sender_info() -> dict[str, Any]:
+def get_sender_info() -> dict[str, Any]:
     """Determine current sender based on environment."""
     session = os.environ.get("ZELLIJ_SESSION_NAME")
     pane_id = os.environ.get("ZELLIJ_PANE_ID")
@@ -84,7 +84,7 @@ def log_message(
     file_name: str | None = None,
 ) -> None:
     """Log a message to relevant session logs and the global all.md."""
-    sender = _get_sender_info()
+    sender = get_sender_info()
     timestamp = _now_str()
 
     # Determine To line

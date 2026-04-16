@@ -14,6 +14,18 @@ from zellij import dump_screen, get_current_pane_id, get_current_session, has_ze
 import logger
 
 
+def _build_sender_prefix() -> str:
+    sender = logger.get_sender_info()
+    name = sender["name"]
+    session = sender.get("session")
+    pane_id = sender.get("pane_id")
+    if sender["source"] == "external":
+        return f"[来自 {name}]"
+    if session and pane_id:
+        return f"[来自 {name} (session: {session} / pane {pane_id})]"
+    return f"[来自 {name}]"
+
+
 def _err(msg: str) -> None:
     print(f"❌ {msg}", file=sys.stderr)
 
@@ -174,7 +186,9 @@ def cmd_to(args: argparse.Namespace) -> int:
     if meta is None:
         _err(f"[{name}] 未注册，请先在对应面板执行 register")
         return 1
-    send_text(meta["session"], meta["pane_id"], content, no_enter=args.no_enter)
+    prefix = _build_sender_prefix()
+    full_content = f"{prefix}\n{content}"
+    send_text(meta["session"], meta["pane_id"], full_content, no_enter=args.no_enter)
     logger.log_message([(name, meta)], content, message_type="direct")
     _info(f"📨 [{name} @ {meta['pane_id']} / {meta['session']}] ← 已发送")
     return 0
@@ -361,7 +375,9 @@ def cmd_send_file(args: argparse.Namespace) -> int:
     if meta is None:
         _err(f"[{name}] 未注册")
         return 1
-    send_text(meta["session"], meta["pane_id"], message)
+    prefix = _build_sender_prefix()
+    full_message = f"{prefix}\n{message}"
+    send_text(meta["session"], meta["pane_id"], full_message)
     logger.log_message([(name, meta)], content, message_type="direct", file_name=filename)
     _info(f"📨 [{name}] ← 已发送文件 {filename}")
     return 0
@@ -371,13 +387,15 @@ def cmd_multicast(args: argparse.Namespace) -> int:
     agents_str = args.agents
     message = args.message
     agents = [a.strip() for a in agents_str.split(",") if a.strip()]
+    prefix = _build_sender_prefix()
+    full_message = f"{prefix}\n{message}"
     sent = []
     for agent in agents:
         meta = _resolve_agent(agent)
         if meta is None:
             _warn(f"{agent} 发送失败（未注册或已离线）")
             continue
-        send_text(meta["session"], meta["pane_id"], message)
+        send_text(meta["session"], meta["pane_id"], full_message)
         sent.append((agent, meta))
         _info(f"📢 已发送给 {agent}")
     if sent:
@@ -392,13 +410,15 @@ def cmd_broadcast(args: argparse.Namespace) -> int:
     if not data:
         _err("注册表不存在，无 Agent 可广播")
         return 1
+    prefix = _build_sender_prefix()
+    full_message = f"{prefix}\n{message}"
     sent = []
     for agent in list(data.keys()):
         meta = _resolve_agent(agent)
         if meta is None:
             _warn(f"{agent} 广播失败（已离线并自动注销）")
             continue
-        send_text(meta["session"], meta["pane_id"], message)
+        send_text(meta["session"], meta["pane_id"], full_message)
         sent.append((agent, meta))
         _info(f"📢 已广播给 {agent}")
     if sent:
