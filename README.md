@@ -22,24 +22,31 @@
 git clone https://github.com/linxinhong/zellij-talk.git ~/.agents/skills/zellij-talk
 ```
 
-在 `~/.zshrc` 或 `~/.bashrc` 中添加环境变量（可选）：
+项目会默认将配置和数据保存在跨平台的 Zellij 配置目录下：
+- **macOS / Linux**：`~/.config/zellij/talk/`
+- **Windows**：`%APPDATA%\zellij\talk\`
+
+该目录下自动创建：
+- `registry.json` — Agent 注册表
+- `sessions/` — 各 session 的对话日志（`{session}.md`）以及全局汇总 `all.md`
+
+如需自定义注册表路径，可设置环境变量：
 
 ```bash
-export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
+export AGENTS_REGISTRY="/custom/path/registry.json"
 ```
 
-然后重载配置：
+如果经常在**普通终端**（非 Zellij）向 Zellij 里的 Agent 发消息，可以设置发送方显示名称，方便日志追溯：
 
 ```bash
-source ~/.zshrc  # 或 source ~/.bashrc
+export ZELLIJ_TALK_FROM="local_planner"
 ```
 
-**说明**：项目不强制要求安装在 `~/.agents/skills/zellij-talk`。`cli.py` 会根据自身所在位置自动找到同目录下的 `registry.json`，因此无论你把它放在 `~/.agents/skills/`、`~/.claude/skills/` 还是其他位置，都能正常工作。只有当你想把注册表放到自定义位置时，才需要设置 `AGENTS_REGISTRY`。
-
-首次使用前，复制注册表模板：
+首次使用前，如果你需要模板，可以复制注册表模板到默认路径：
 
 ```bash
-cp "$AGENTS_DIR/registry.json.example" "$AGENTS_DIR/registry.json"
+mkdir -p ~/.config/zellij/talk
+cp registry.json.example ~/.config/zellij/talk/registry.json
 ```
 
 ## 目录结构

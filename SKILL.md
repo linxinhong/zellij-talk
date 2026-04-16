@@ -48,10 +48,24 @@ zellij-talk/
 
 ### 1. 环境准备
 
-在 `~/.zshrc` 或 `~/.bashrc` 中添加（可选）：
+默认配置和数据保存在跨平台的 Zellij 配置目录下：
+- **macOS / Linux**：`~/.config/zellij/talk/`
+- **Windows**：`%APPDATA%\zellij\talk\`
+
+该目录下包含：
+- `registry.json` — Agent 注册表
+- `sessions/` — 按 session 分文件的对话日志，以及全局 `all.md`
+
+如果你需要自定义注册表路径，可以在 `~/.zshrc` 或 `~/.bashrc` 中设置：
 
 ```bash
-export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
+export AGENTS_REGISTRY="/custom/path/registry.json"
+```
+
+如果经常在**普通终端**（非 Zellij）向 Zellij 里的 Agent 发消息，可以设置发送方显示名称：
+
+```bash
+export ZELLIJ_TALK_FROM="local_planner"
 ```
 
 然后重载配置：
@@ -59,8 +73,6 @@ export AGENTS_DIR="$HOME/.agents/skills/zellij-talk"
 ```bash
 source ~/.zshrc  # 或 source ~/.bashrc
 ```
-
-**说明**：`AGENTS_DIR` 仅用于文档示例中的路径引用。`cli.py` 会根据自身所在位置自动找到同目录下的 `registry.json`，因此无论你把项目克隆到 `~/.agents/skills/`、`~/.claude/skills/` 还是其他位置，都能正常工作。如果你需要把注册表放到自定义位置，可以设置 `AGENTS_REGISTRY` 环境变量。
 
 ### 2. 启动协作
 
