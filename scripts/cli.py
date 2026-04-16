@@ -194,6 +194,34 @@ def cmd_to(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reply(args: argparse.Namespace) -> int:
+    """Send a message directly to a session:pane, even if unregistered."""
+    target = args.target
+    content = args.content or ""
+    if not content and not sys.stdin.isatty():
+        content = sys.stdin.read()
+    content = content.strip()
+    if not content:
+        _err("内容不能为空")
+        return 1
+
+    if ":" not in target:
+        _err("目标格式错误，应为 session:pane_id，例如 rectangular-viola:0")
+        return 1
+
+    session, pane_id = target.split(":", 1)
+    if not session or not pane_id:
+        _err("目标格式错误，应为 session:pane_id")
+        return 1
+
+    prefix = _build_sender_prefix()
+    full_content = f"{prefix}\n{content}"
+    send_text(session, pane_id, full_content, no_enter=args.no_enter)
+    logger.log_message([(target, {"session": session, "pane_id": pane_id})], content, message_type="direct")
+    _info(f"📨 [{pane_id} / {session}] ← 已直接发送")
+    return 0
+
+
 def cmd_from(args: argparse.Namespace) -> int:
     name = args.agent
     meta = _resolve_agent(name)
@@ -479,6 +507,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("content", nargs="?", help="消息内容")
     p.add_argument("--no-enter", action="store_true", help="不发送回车")
 
+    p = subparsers.add_parser("reply", help="直接向 session:pane 发消息（无需注册）")
+    p.add_argument("target", help="目标，格式: session:pane_id")
+    p.add_argument("content", nargs="?", help="消息内容")
+    p.add_argument("--no-enter", action="store_true", help="不发送回车")
+
     p = subparsers.add_parser("from", help="读取 Agent 输出")
     p.add_argument("agent", help="Agent 名称")
     p.add_argument("lines", nargs="?", type=int, default=100, help="行数，默认 100")
@@ -524,6 +557,7 @@ def main(argv: list[str] | None = None) -> int:
         "unregister-all": cmd_unregister_all,
         "auto-register": cmd_auto_register,
         "to": cmd_to,
+        "reply": cmd_reply,
         "from": cmd_from,
         "watch": cmd_watch,
         "wait": cmd_wait,
