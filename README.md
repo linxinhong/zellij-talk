@@ -176,8 +176,8 @@ python3 "$AGENTS_DIR/scripts/cli.py" --help
 | `to` | `to <agent_name> <内容> [--no-enter]` | 发送消息（pane 已关闭时自动清理） |
 | `reply` | `reply <session:pane_id> <内容> [--no-enter]` | 直接向 pane 发消息（无需注册） |
 | `from` | `from <agent_name> [行数] [--ansi]` | 读取输出（pane 已关闭时自动清理） |
-| `watch` | `watch <agent_name> [关键词]` | 监听输出 |
-| `wait` | `wait <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
+| `watch` | `watch <agent_name> [标签]` | 监听输出 |
+| `wait` | `wait <agent_name> <标签> [超时秒数]` | 阻塞等待 <talk>标签</talk> |
 | `list` | `list [--json]` | 列出已注册 Agent |
 | `health` | `health [agent_name]` | 健康检查 |
 | `memory` | `memory [--session] [--pane] [--agent] [--last N] [--json]` | 查询对话历史 |
