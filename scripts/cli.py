@@ -27,6 +27,23 @@ def _build_sender_prefix() -> str:
     return f"[来自 {name}]"
 
 
+def _obfuscate_talk_tags(text: str) -> str:
+    """Replace <talk> and </talk> with Unicode escapes so wait doesn't match
+    the instruction itself before the agent outputs the tag.
+    """
+    return text.replace("<talk>", "\\u003ctalk\\u003e").replace("</talk>", "\\u003c/talk\\u003e")
+
+
+def _add_talk_hint(text: str) -> str:
+    """If the text contains obfuscated talk tags, prepend a hint asking the agent
+    to output them wrapped in backticks so the tags are preserved.
+    """
+    if "\\u003ctalk\\u003e" in text and "\\u003c/talk\\u003e" in text:
+        hint = "注：消息中的 \\u003ctalk\\u003e...\\u003c/talk\\u003e 请用反引号包裹后原样输出，例如：\\n`<talk>完成</talk>`\\n\n"
+        return hint + text
+    return text
+
+
 def _match_keyword(text: str, keyword: str) -> str | None:
     """Match only exact <talk>keyword</talk> tags. If keyword is not wrapped, wrap it automatically."""
     raw = keyword.strip()
@@ -200,6 +217,8 @@ def cmd_to(args: argparse.Namespace) -> int:
         _err(f"[{name}] 未注册，请先在对应面板执行 register")
         return 1
     prefix = _build_sender_prefix()
+    content = _obfuscate_talk_tags(content)
+    content = _add_talk_hint(content)
     full_content = f"{prefix}\n{content}"
     send_text(meta["session"], meta["pane_id"], full_content, no_enter=args.no_enter)
     logger.log_message([(name, meta)], content, message_type="direct")
@@ -228,6 +247,8 @@ def cmd_reply(args: argparse.Namespace) -> int:
         return 1
 
     prefix = _build_sender_prefix()
+    content = _obfuscate_talk_tags(content)
+    content = _add_talk_hint(content)
     full_content = f"{prefix}\n{content}"
     send_text(session, pane_id, full_content, no_enter=args.no_enter)
     logger.log_message([(target, {"session": session, "pane_id": pane_id})], content, message_type="direct")
@@ -302,12 +323,14 @@ def cmd_wait(args: argparse.Namespace) -> int:
     lines = 100
     _info(f"⏳ 等待 [{name}] 输出中出现标签: '{keyword}' (超时 {timeout}s)")
     sys.stdout.flush()
+
+    meta = _resolve_agent(name, auto_prune=False)
+    if meta is None:
+        _err(f"[{name}] 未注册")
+        return 1
+
     elapsed = 0
     while elapsed < timeout:
-        meta = _resolve_agent(name, auto_prune=False)
-        if meta is None:
-            _err(f"[{name}] 未注册")
-            return 1
         text = dump_screen(meta["session"], meta["pane_id"], ansi=False)
         output_lines = text.splitlines()
         output = "\n".join(output_lines[-lines:])
@@ -435,6 +458,8 @@ def cmd_send_file(args: argparse.Namespace) -> int:
         _err(f"[{name}] 未注册")
         return 1
     prefix = _build_sender_prefix()
+    message = _obfuscate_talk_tags(message)
+    message = _add_talk_hint(message)
     full_message = f"{prefix}\n{message}"
     send_text(meta["session"], meta["pane_id"], full_message)
     logger.log_message([(name, meta)], content, message_type="direct", file_name=filename)
@@ -447,6 +472,8 @@ def cmd_multicast(args: argparse.Namespace) -> int:
     message = args.message
     agents = [a.strip() for a in agents_str.split(",") if a.strip()]
     prefix = _build_sender_prefix()
+    message = _obfuscate_talk_tags(message)
+    message = _add_talk_hint(message)
     full_message = f"{prefix}\n{message}"
     sent = []
     for agent in agents:
@@ -470,6 +497,8 @@ def cmd_broadcast(args: argparse.Namespace) -> int:
         _err("注册表不存在，无 Agent 可广播")
         return 1
     prefix = _build_sender_prefix()
+    message = _obfuscate_talk_tags(message)
+    message = _add_talk_hint(message)
     full_message = f"{prefix}\n{message}"
     sent = []
     for agent in list(data.keys()):
