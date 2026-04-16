@@ -9,7 +9,7 @@ description: |
   - 任务分发、并行处理、任务汇报
   - 协调多个 coder/reviewer/planner 协作
   - 任何涉及"面板协作"、"Agent 通信"的场景
-version: 1.0.0
+version: 1.1.0
 ---
 
 # zellij-talk — 多 Agent 协作框架
@@ -21,11 +21,12 @@ version: 1.0.0
 - **Agent**：运行在 Zellij 面板中的 AI 实例
 - **注册表**：`registry.json` 记录所有 Agent 的 session + pane_id
 - **消息路由**：通过 Agent 名而非 pane_id 动态路由
+- **惰性清理**：每次对 Agent 执行操作时，若目标 pane 已关闭，会自动从注册表中移除
 
 ## 环境要求
 
 - Zellij 终端复用器（必须先安装）
-- jq（JSON 处理）
+- Python 3.9+
 - 各面板需分别注册 Agent
 
 ## 目录结构
@@ -33,19 +34,27 @@ version: 1.0.0
 ```
 zellij-talk/
 ├── SKILL.md                    # 本文件
-├── scripts/                    # 核心原语
-│   ├── register.sh            # 注册当前面板为 Agent
-│   ├── unregister.sh          # 注销 Agent
-│   ├── auto-register.sh       # 自动生成名字并注册
-│   ├── to.sh                  # 向 Agent 发消息（支持管道）
-│   ├── from.sh                # 读取 Agent 输出
-│   ├── watch.sh               # 监听 Agent 输出
-│   ├── wait.sh                # 阻塞等待关键词
-│   ├── list.sh                # 列出已注册 Agent
-│   ├── health.sh              # Agent 健康检查
-│   ├── prune.sh               # 清理僵尸 Agent
-│   ├── send-file.sh           # 发送文件给 Agent
-│   └── multicast.sh           # 多播消息
+├── README.md                   # 用户文档
+├── pyproject.toml              # Python 项目配置
+├── scripts/                    # 薄包装脚本（向后兼容）
+│   ├── register.sh
+│   ├── unregister.sh
+│   ├── auto-register.sh
+│   ├── to.sh
+│   ├── from.sh
+│   ├── watch.sh
+│   ├── wait.sh
+│   ├── list.sh
+│   ├── health.sh
+│   ├── prune.sh
+│   ├── send-file.sh
+│   ├── multicast.sh
+│   └── broadcast.sh
+└── src/
+    └── zellij_talk/            # Python 核心实现
+        ├── registry.py
+        ├── zellij.py
+        └── cli.py
 ```
 
 ## 快速开始
@@ -129,6 +138,8 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ~/.agents/skills/zellij-talk/scripts/to.sh <agent_name> <内容> --no-enter
 ```
 
+**惰性清理**：如果目标 pane 已关闭或 session 不存在，脚本会自动从 `registry.json` 中移除该 Agent，并提示用户。
+
 ### 读取 Agent 输出
 
 ```bash
@@ -178,6 +189,8 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ~/.agents/skills/zellij-talk/scripts/prune.sh --dry-run
 ~/.agents/skills/zellij-talk/scripts/prune.sh
 ```
+
+**注意**：由于 `to`、`from`、`broadcast`、`multicast` 已内置惰性自动清理，通常无需手动执行 `prune.sh`。
 
 ### 发送文件
 
@@ -267,6 +280,18 @@ source ~/.zshrc  # 或 source ~/.bashrc
 # 后台监听，检测到关键词后触发后续流程
 ```
 
+## 直接使用 Python CLI
+
+内部实现已全部迁移到 Python，bash 脚本仅作为薄包装保留向后兼容。你也可以直接调用 Python 模块：
+
+```bash
+export PYTHONPATH="$AGENTS_DIR/src:$PYTHONPATH"
+
+python3 -m zellij_talk.cli list
+python3 -m zellij_talk.cli to kimi_coder_Alex "你好"
+python3 -m zellij_talk.cli prune --dry-run
+```
+
 ## 脚本路径常量
 
 技能内部使用以下路径常量：
@@ -321,18 +346,23 @@ export REGISTRY="$AGENTS_DIR/registry.json"
 
 ### 添加新业务 Skill
 
-在 `scripts/` 目录创建新脚本：
+在 `scripts/` 目录创建新脚本，推荐调用 Python CLI：
 
 ```bash
 #!/bin/bash
 set -euo pipefail
-SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENTS_DIR="${AGENTS_DIR:-$SCRIPT_DIR/..}"
+PYTHONPATH="$AGENTS_DIR/src:${PYTHONPATH:-}" python3 -m zellij_talk.cli <subcommand> "$@"
+```
 
-# 读取源 Agent 输出
-CONTENT=$("$SCRIPTS/from.sh" "source_agent" 100)
+也可以直接 import Python 模块：
 
-# 处理并转发
-"$SCRIPTS/to.sh" "target_agent" "处理后的内容：$CONTENT"
+```python
+import sys
+sys.path.insert(0, "src")
+from zellij_talk.registry import list_agents
+from zellij_talk.zellij import dump_screen, send_text
 ```
 
 ## 设计原则
@@ -342,3 +372,4 @@ CONTENT=$("$SCRIPTS/from.sh" "source_agent" 100)
 3. **唯一命名**：同一工作区内不允许重复 Agent 名
 4. **职责单一**：每个脚本只做一件事
 5. **可扩展**：业务层通过 scripts 组合实现复杂工作流
+6. **自动清理**：操作 Agent 前自动检查 pane 存活状态，失效则自动移除注册记录
