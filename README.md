@@ -7,11 +7,12 @@
 - **Agent**：运行在 Zellij 面板中的 AI 实例
 - **注册表**：`registry.json` 记录所有 Agent 的 `session` + `pane_id`
 - **消息路由**：通过 Agent 名而非 `pane_id` 动态路由，完全面板无关
+- **惰性清理**：对 Agent 执行 `to` / `from` / `broadcast` / `multicast` 等操作时，如果目标 pane 已关闭，会自动从注册表中移除该 Agent
 
 ## 环境要求
 
 - [Zellij](https://zellij.dev/documentation/installation.html) 终端复用器
-- `jq`（JSON 处理工具）
+- Python 3.9+
 
 ## 安装
 
@@ -45,24 +46,32 @@ cp "$AGENTS_DIR/registry.json.example" "$AGENTS_DIR/registry.json"
 ```
 zellij-talk/
 ├── README.md                 # 本文件
-├── .gitignore                # 排除运行时文件（如 registry.json）
+├── SKILL.md                  # Kimi Skill 说明
+├── .gitignore                # 排除运行时文件
+├── pyproject.toml            # Python 项目配置
 ├── registry.json.example     # 注册表模板
-└── scripts/                  # 核心脚本
-    ├── register.sh           # 注册当前面板为 Agent
-    ├── unregister.sh         # 注销 Agent
-    ├── unregister-all.sh     # 一键注销全部 Agent
-    ├── auto-register.sh      # 自动生成名字并注册
-    ├── to.sh                 # 向 Agent 发消息（支持管道）
-    ├── from.sh               # 读取 Agent 输出
-    ├── watch.sh              # 监听 Agent 输出
-    ├── wait.sh               # 阻塞等待关键词
-    ├── list.sh               # 列出已注册 Agent
-    ├── health.sh             # Agent 健康检查
-    ├── prune.sh              # 清理僵尸 Agent
-    ├── send-file.sh          # 发送文件给 Agent
-    ├── multicast.sh          # 多播消息
-    ├── broadcast.sh          # 广播消息给所有 Agent
-    └── review.sh             # 示例工作流：代码审查
+├── src/
+│   └── zellij_talk/          # Python 核心实现
+│       ├── __init__.py
+│       ├── registry.py       # 注册表管理（原子写、无 jq 依赖）
+│       ├── zellij.py         # Zellij CLI 封装
+│       └── cli.py            # 统一命令行入口
+└── scripts/                  # 薄包装脚本（向后兼容）
+    ├── register.sh
+    ├── unregister.sh
+    ├── unregister-all.sh
+    ├── auto-register.sh
+    ├── to.sh
+    ├── from.sh
+    ├── watch.sh
+    ├── wait.sh
+    ├── list.sh
+    ├── health.sh
+    ├── prune.sh
+    ├── send-file.sh
+    ├── multicast.sh
+    ├── broadcast.sh
+    └── review.sh
 ```
 
 ## 快速开始
@@ -156,8 +165,8 @@ opencode_planner_Cici  # OpenCode，负责整理计划
 | `unregister.sh` | `unregister.sh <agent_name>` | 注销指定 Agent |
 | `unregister-all.sh` | `unregister-all.sh [--current-session]` | 批量注销 |
 | `auto-register.sh` | `auto-register.sh [role]` | 自动生成名字并注册 |
-| `to.sh` | `to.sh <agent_name> <内容> [--no-enter]` | 发送消息 |
-| `from.sh` | `from.sh <agent_name> [行数] [--ansi]` | 读取输出 |
+| `to.sh` | `to.sh <agent_name> <内容> [--no-enter]` | 发送消息（ pane 已关闭时会自动清理注册表） |
+| `from.sh` | `from.sh <agent_name> [行数] [--ansi]` | 读取输出（ pane 已关闭时会自动清理注册表） |
 | `watch.sh` | `watch.sh <agent_name> [关键词]` | 监听输出 |
 | `wait.sh` | `wait.sh <agent_name> <关键词> [超时秒数]` | 阻塞等待关键词 |
 | `list.sh` | `list.sh [--json]` | 列出已注册 Agent |
@@ -168,6 +177,24 @@ opencode_planner_Cici  # OpenCode，负责整理计划
 | `broadcast.sh` | `broadcast.sh "消息"` | 广播给所有 Agent |
 | `review.sh` | `review.sh [source] [target]` | 代码审查工作流示例 |
 
+## 直接使用 Python CLI
+
+如果你不想通过 `scripts/*.sh` 调用，也可以直接使用 Python 模块：
+
+```bash
+# 设置 PYTHONPATH
+export PYTHONPATH="$AGENTS_DIR/src:$PYTHONPATH"
+
+# 列出 Agent
+python3 -m zellij_talk.cli list
+
+# 发送消息
+python3 -m zellij_talk.cli to kimi_coder_Alex "你好"
+
+# 清理僵尸 Agent
+python3 -m zellij_talk.cli prune --dry-run
+```
+
 ## 开发规范
 
 新建脚本时遵循以下原则：
@@ -175,6 +202,7 @@ opencode_planner_Cici  # OpenCode，负责整理计划
 1. **面板无关**：不硬编码 `pane_id`，所有路由通过 Agent 名动态查找
 2. **双重定位**：`session` + `pane_id` 缺一不可（跨 session 的 `pane_id` 可能重复）
 3. **唯一命名**：同一工作区内不允许重复的 Agent 名
+4. **自动清理**：对 Agent 操作时优先检查 pane 存活状态，失效则自动从注册表移除
 
 示例模板：
 
@@ -207,6 +235,8 @@ CONTENT=$("$SCRIPTS/from.sh" "$SOURCE_AGENT" 80)
 ```bash
 ~/.agents/skills/zellij-talk/scripts/prune.sh
 ```
+
+**注意**：现在 `to.sh`、`from.sh`、`broadcast.sh`、`multicast.sh` 会在目标 pane 不存在时**自动清理**注册表，因此通常无需手动运行 `prune.sh`。
 
 ## License
 
