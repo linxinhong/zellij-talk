@@ -10,7 +10,7 @@ from paths import get_all_jsonl_path, get_sessions_dir, get_session_jsonl_path
 from registry import find_agent_by_pane
 
 
-def _now_str() -> str:
+def now_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -58,7 +58,7 @@ def log_message(
 ) -> None:
     """Log a message to relevant session jsonl and the global all.jsonl."""
     sender = get_sender_info()
-    timestamp = _now_str()
+    timestamp = now_str()
 
     # Determine To info
     if message_type == "broadcast":

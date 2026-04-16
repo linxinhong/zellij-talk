@@ -17,9 +17,9 @@ import paths
 
 __version__ = "1.1.0"
 
-from ack import generate_msg_id, inject_msg_id, match_ack
+from ack import generate_msg_id, inject_msg_id, match_ack, match_done, match_reply
 from pipeline import load_pipeline, resolve_agent_ref
-from queue import clear_delivered, dequeue_for_agent, enqueue, list_undelivered
+from msg_queue import clear_delivered, dequeue_for_agent, enqueue, list_undelivered
 from registry import get_agent, list_agents, load_registry, register_agent, replace_agent, save_registry, unregister_agent
 from stats import compute_stats, format_stats
 from zellij import dump_screen, get_current_pane_id, get_current_session, has_zellij_env, is_pane_alive, rename_pane, send_text
@@ -116,6 +116,35 @@ def _get_ppid_info() -> str:
         return result.stdout
     except Exception:
         return ""
+
+
+def _wait_subscribe_for(
+    meta: dict[str, Any],
+    msg_id: str,
+    timeout: int,
+    matcher,
+    label: str,
+) -> tuple[bool, str | None]:
+    stop_event = threading.Event()
+    result = {"found": False, "payload": None}
+
+    def _search():
+        for text in _subscribe_stream(meta["session"], meta["pane_id"], stop_event=stop_event):
+            matched = matcher(text, msg_id)
+            if matched:
+                result["found"] = True
+                if isinstance(matched, str):
+                    result["payload"] = matched
+                return
+
+    t = threading.Thread(target=_search)
+    t.daemon = True
+    t.start()
+    t.join(timeout=timeout)
+    if not result["found"]:
+        stop_event.set()
+        t.join(timeout=2)
+    return result["found"], result["payload"]
 
 
 def _subscribe_stream(session: str, pane_id: str, stop_event: threading.Event | None = None):
@@ -307,7 +336,13 @@ def cmd_auto_register(args: argparse.Namespace) -> int:
 def cmd_to(args: argparse.Namespace) -> int:
     name = args.agent
     content = args.content or ""
-    if not content and not sys.stdin.isatty():
+    if args.file:
+        p = Path(args.file)
+        if not p.exists():
+            _err(f"文件不存在: {args.file}")
+            return 1
+        content = p.read_text(encoding="utf-8")
+    elif not content and not sys.stdin.isatty():
         content = sys.stdin.read()
     content = content.strip()
     if not content:
@@ -334,27 +369,36 @@ def cmd_to(args: argparse.Namespace) -> int:
 
     if args.wait_ack:
         _info(f"⏳ 等待 ACK [{msg_id}] ...")
-        stop_event = threading.Event()
-        result = {"found": False}
-
-        def _search():
-            for text in _subscribe_stream(meta["session"], meta["pane_id"], stop_event=stop_event):
-                if match_ack(text, msg_id):
-                    result["found"] = True
-                    return
-
-        t = threading.Thread(target=_search)
-        t.daemon = True
-        t.start()
-        t.join(timeout=args.ack_timeout)
-        if not result["found"]:
-            stop_event.set()
-            t.join(timeout=2)
-
-        if result["found"]:
+        sys.stdout.flush()
+        found, _ = _wait_subscribe_for(meta, msg_id, args.ack_timeout, match_ack, "ACK")
+        if found:
             _info(f"✅ 收到 ACK [{msg_id}]")
         else:
-            _warn(f"⚠️ 未收到 ACK [{msg_id}]，消息已转入离线队列")
+            _warn(f"未收到 ACK [{msg_id}]，消息已转入离线队列")
+            enqueue(msg_id, name, content)
+            return 2
+
+    if args.wait_done:
+        _info(f"⏳ 等待 DONE [{msg_id}] ...")
+        sys.stdout.flush()
+        found, _ = _wait_subscribe_for(meta, msg_id, args.done_timeout, match_done, "DONE")
+        if found:
+            _info(f"✅ 收到 DONE [{msg_id}]")
+        else:
+            _warn(f"未收到 DONE [{msg_id}]，消息已转入离线队列")
+            enqueue(msg_id, name, content)
+            return 2
+
+    if args.wait_reply:
+        _info(f"⏳ 等待 REPLY [{msg_id}] ...")
+        sys.stdout.flush()
+        found, payload = _wait_subscribe_for(meta, msg_id, args.reply_timeout, match_reply, "REPLY")
+        if found:
+            _info(f"✅ 收到 REPLY [{msg_id}]")
+            if payload:
+                print(payload)
+        else:
+            _warn(f"未收到 REPLY [{msg_id}]，消息已转入离线队列")
             enqueue(msg_id, name, content)
             return 2
     return 0
@@ -389,7 +433,7 @@ def cmd_send_json(args: argparse.Namespace) -> int:
         "to": name,
         "type": args.type or "message",
         "payload": data,
-        "ts": logger._now_str(),
+        "ts": logger.now_str(),
     }
     text = json.dumps(envelope, ensure_ascii=False)
     send_text(meta["session"], meta["pane_id"], text)
@@ -405,7 +449,7 @@ def cmd_envelope(args: argparse.Namespace) -> int:
         "to": args.agent,
         "type": args.type or "message",
         "payload": args.payload,
-        "ts": logger._now_str(),
+        "ts": logger.now_str(),
     }
     print(json.dumps(envelope, ensure_ascii=False, indent=2))
     return 0
@@ -414,7 +458,13 @@ def cmd_envelope(args: argparse.Namespace) -> int:
 def cmd_reply(args: argparse.Namespace) -> int:
     target = args.target
     content = args.content or ""
-    if not content and not sys.stdin.isatty():
+    if args.file:
+        p = Path(args.file)
+        if not p.exists():
+            _err(f"文件不存在: {args.file}")
+            return 1
+        content = p.read_text(encoding="utf-8")
+    elif not content and not sys.stdin.isatty():
         content = sys.stdin.read()
     content = content.strip()
     if not content:
@@ -790,32 +840,58 @@ def cmd_pipeline(args: argparse.Namespace) -> int:
             action = action.replace(f"{{{k}}}", str(v))
 
         _info(f"▶ 步骤 {idx + 1}: {resolved} ← {action[:60]}")
-        class ToArgs:
-            agent = resolved
-            content = action
-            no_enter = False
-            wait_ack = False
-            ack_timeout = 60
-        ret = cmd_to(ToArgs())
-        if ret not in (0, 2):
-            _err(f"第 {idx + 1} 步发送失败")
+
+        meta = _resolve_agent(resolved)
+        if meta is None:
+            _err(f"第 {idx + 1} 步: [{resolved}] 未注册或已离线")
             return 1
+
+        msg_id = generate_msg_id()
+        prefix = _build_sender_prefix()
+        obfuscated = _obfuscate_talk_tags(action)
+        hinted = _add_talk_hint(obfuscated)
+        full_content = f"{prefix}\n{inject_msg_id(hinted, msg_id)}"
+
+        try:
+            send_text(meta["session"], meta["pane_id"], full_content)
+        except Exception as e:
+            _err(f"第 {idx + 1} 步发送失败: {e}")
+            enqueue(msg_id, resolved, action)
+            return 1
+
+        logger.log_message([(resolved, meta)], action, message_type="direct")
+        _info(f"📨 [{resolved}] ← 已发送 [MSG_ID:{msg_id}]")
 
         wait_for = step.get("wait_for")
         if wait_for:
             step_timeout = step.get("timeout", 60)
-            class WaitArgs:
-                agent = resolved
-                keyword = wait_for
-                timeout = step_timeout
-            _info(f"⏳ 等待 {resolved} 输出 '{wait_for}' (最多 {step_timeout}s)")
-            wret = cmd_wait(WaitArgs())
-            if wret != 0:
-                _err(f"第 {idx + 1} 步等待超时或失败")
-                return 1
-            # Capture last output for next step variable
-            text = dump_screen(registry[resolved]["session"], registry[resolved]["pane_id"], full=False)
-            variables["prev_output"] = "\n".join(text.splitlines()[-50:])
+            if wait_for == "[DONE]":
+                _info(f"⏳ 等待 [{resolved}] DONE [{msg_id}] (最多 {step_timeout}s)")
+                found, _ = _wait_subscribe_for(meta, msg_id, step_timeout, match_done, "DONE")
+                if not found:
+                    _err(f"第 {idx + 1} 步等待 DONE 超时")
+                    return 1
+                _info(f"✅ 收到 DONE [{msg_id}]")
+            elif wait_for == "[REPLY]":
+                _info(f"⏳ 等待 [{resolved}] REPLY [{msg_id}] (最多 {step_timeout}s)")
+                found, payload = _wait_subscribe_for(meta, msg_id, step_timeout, match_reply, "REPLY")
+                if not found:
+                    _err(f"第 {idx + 1} 步等待 REPLY 超时")
+                    return 1
+                _info(f"✅ 收到 REPLY [{msg_id}]")
+                variables["prev_output"] = payload or ""
+            else:
+                class WaitArgs:
+                    agent = resolved
+                    keyword = wait_for
+                    timeout = step_timeout
+                _info(f"⏳ 等待 {resolved} 输出 '{wait_for}' (最多 {step_timeout}s)")
+                wret = cmd_wait(WaitArgs())
+                if wret != 0:
+                    _err(f"第 {idx + 1} 步等待超时或失败")
+                    return 1
+                text = dump_screen(meta["session"], meta["pane_id"], full=False)
+                variables["prev_output"] = "\n".join(text.splitlines()[-50:])
     _info("✅ Pipeline 执行完毕")
     return 0
 
@@ -830,7 +906,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     _info("─" * 60)
     last_size = path.stat().st_size
     # Print existing tail
-    records = memory._read_log_file(path)
+    records = memory.read_log_file(path)
     for rec in records[-20:]:
         print(_format_dashboard_line(rec))
     if not args.follow:
@@ -840,7 +916,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
             time.sleep(1)
             size = path.stat().st_size
             if size > last_size:
-                new_records = memory._read_log_file(path)
+                new_records = memory.read_log_file(path)
                 for rec in new_records[len(records):]:
                     print(_format_dashboard_line(rec))
                 records = new_records
@@ -903,9 +979,14 @@ def main(argv: list[str] | None = None) -> int:
     p = subparsers.add_parser("to", help="向 Agent 发消息")
     p.add_argument("agent", help="Agent 名称")
     p.add_argument("content", nargs="?", help="消息内容")
+    p.add_argument("--file", help="从文件读取消息内容（优先于 content）")
     p.add_argument("--no-enter", action="store_true", help="不发送回车")
     p.add_argument("--wait-ack", action="store_true", help="发送后等待 ACK")
     p.add_argument("--ack-timeout", type=int, default=60, help="ACK 超时秒数，默认 60")
+    p.add_argument("--wait-done", action="store_true", help="发送后等待 DONE")
+    p.add_argument("--done-timeout", type=int, default=60, help="DONE 超时秒数，默认 60")
+    p.add_argument("--wait-reply", action="store_true", help="发送后等待 REPLY")
+    p.add_argument("--reply-timeout", type=int, default=60, help="REPLY 超时秒数，默认 60")
 
     p = subparsers.add_parser("send-json", help="发送结构化 JSON 消息")
     p.add_argument("agent", help="Agent 名称")
@@ -921,6 +1002,7 @@ def main(argv: list[str] | None = None) -> int:
     p = subparsers.add_parser("reply", help="直接向 session:pane 发消息（无需注册）")
     p.add_argument("target", help="目标，格式: session:pane_id")
     p.add_argument("content", nargs="?", help="消息内容")
+    p.add_argument("--file", help="从文件读取消息内容（优先于 content）")
     p.add_argument("--no-enter", action="store_true", help="不发送回车")
 
     p = subparsers.add_parser("from", help="读取 Agent 输出")

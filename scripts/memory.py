@@ -7,7 +7,7 @@ from typing import Any
 from paths import get_all_jsonl_path, get_session_jsonl_path
 
 
-def _read_log_file(path: Path) -> list[dict[str, Any]]:
+def read_log_file(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     records = []
@@ -36,7 +36,7 @@ def query_memory(
     else:
         path = get_all_jsonl_path()
 
-    records = _read_log_file(path)
+    records = read_log_file(path)
 
     # Apply filters
     filtered = []

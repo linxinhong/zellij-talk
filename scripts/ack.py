@@ -1,4 +1,4 @@
-"""Lightweight ACK protocol for zellij-talk."""
+"""Lightweight ACK/DONE/REPLY protocol for zellij-talk."""
 
 import re
 import uuid
@@ -14,6 +14,10 @@ def inject_msg_id(content: str, msg_id: str) -> str:
 
 def match_ack(text: str, msg_id: str) -> bool:
     return f"[ACK:{msg_id}]" in text
+
+
+def match_done(text: str, msg_id: str) -> bool:
+    return f"[DONE:{msg_id}]" in text
 
 
 def match_reply(text: str, msg_id: str) -> str | None:

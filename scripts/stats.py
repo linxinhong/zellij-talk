@@ -1,20 +1,20 @@
 """Message statistics for zellij-talk."""
 
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from memory import _read_log_file
+from memory import read_log_file
 from paths import get_all_jsonl_path
 
 
 def compute_stats(session: str | None = None, today: bool = False) -> dict[str, Any]:
     path = get_all_jsonl_path() if not session else Path(str(get_all_jsonl_path()).replace("all.jsonl", f"{session}.jsonl"))
-    records = _read_log_file(path)
+    records = read_log_file(path)
 
     if today:
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         records = [r for r in records if r.get("timestamp", "").startswith(today_str)]
 
     total = len(records)
