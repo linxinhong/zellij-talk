@@ -1,7 +1,7 @@
 #!/bin/bash
 # Agent 注册脚本
 # 用法: register.sh <agent_name>
-# 例如: register.sh claude_reviewer_23A3
+# 例如: register.sh claude_reviewer_Blob
 # 在需要注册的面板内执行
 
 set -euo pipefail

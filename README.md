@@ -69,20 +69,20 @@ zellij-talk/
 
 ### 1. 命名规范
 
-格式：`{agent_tool}_{main_role}_{4位唯一ID}`
+格式：`{agent_tool}_{main_role}_{可记忆英文名}`
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
 | `agent_tool` | AI 工具名 | `claude` / `kimi` / `opencode` |
 | `main_role` | 主要职责 | `coder` / `reviewer` / `tester` / `planner` |
-| `4位唯一ID` | 随机大写字母+数字 | `23A3` / `F1B9` / `0C4E` |
+| `可记忆英文名` | 便于识别的名字 | `Blob` / `Alex` / `Cici` |
 
 示例：
 
 ```bash
-claude_reviewer_23A3    # Claude Code，负责代码审查
-kimi_coder_F1B9        # Kimi Code，负责功能编写
-opencode_planner_0C4E  # OpenCode，负责整理计划
+claude_reviewer_Blob    # Claude Code，负责代码审查
+kimi_coder_Alex        # Kimi Code，负责功能编写
+opencode_planner_Cici  # OpenCode，负责整理计划
 ```
 
 ### 2. 注册 Agent
@@ -91,20 +91,20 @@ opencode_planner_0C4E  # OpenCode，负责整理计划
 
 ```bash
 # Kimi Code 面板
-~/.agents/skills/zellij-talk/scripts/register.sh kimi_coder_F1B9
+~/.agents/skills/zellij-talk/scripts/register.sh kimi_coder_Alex
 
 # Claude Code 面板
-~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_23A3
+~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_Blob
 ```
 
 ### 3. 发送与读取消息
 
 ```bash
 # 向某个 Agent 发送消息
-~/.agents/skills/zellij-talk/scripts/to.sh kimi_coder_F1B9 "帮我实现一个 LRU Cache，用 Rust 写"
+~/.agents/skills/zellij-talk/scripts/to.sh kimi_coder_Alex "帮我实现一个 LRU Cache，用 Rust 写"
 
 # 读取某个 Agent 的最新输出（默认 100 行）
-~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_23A3
+~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_Blob
 
 # 列出所有已注册 Agent
 ~/.agents/skills/zellij-talk/scripts/list.sh
@@ -121,7 +121,7 @@ opencode_planner_0C4E  # OpenCode，负责整理计划
 
 ```bash
 # 注销单个 Agent
-~/.agents/skills/zellij-talk/scripts/unregister.sh kimi_coder_F1B9
+~/.agents/skills/zellij-talk/scripts/unregister.sh kimi_coder_Alex
 
 # 或一键注销当前 session 的所有 Agent
 ~/.agents/skills/zellij-talk/scripts/unregister-all.sh --current-session
@@ -183,8 +183,8 @@ opencode_planner_0C4E  # OpenCode，负责整理计划
 set -euo pipefail
 SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
 
-SOURCE_AGENT="kimi_coder_F1B9"
-TARGET_AGENT="claude_reviewer_23A3"
+SOURCE_AGENT="kimi_coder_Alex"
+TARGET_AGENT="claude_reviewer_Blob"
 
 CONTENT=$("$SCRIPTS/from.sh" "$SOURCE_AGENT" 80)
 "$SCRIPTS/to.sh" "$TARGET_AGENT" "处理后的内容：$CONTENT"

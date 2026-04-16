@@ -1,9 +1,9 @@
 #!/bin/bash
 # 读取某个 Agent 的当前输出
 # 用法: from.sh <agent_name> [行数] [--ansi]
-# 例如: from.sh claude_reviewer_23A3 50
-#       from.sh claude_reviewer_23A3 --ansi
-#       from.sh claude_reviewer_23A3 50 --ansi
+# 例如: from.sh claude_reviewer_Blob 50
+#       from.sh claude_reviewer_Blob --ansi
+#       from.sh claude_reviewer_Blob 50 --ansi
 
 set -euo pipefail
 
