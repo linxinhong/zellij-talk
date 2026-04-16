@@ -151,6 +151,13 @@ python3 "$AGENTS_DIR/scripts/cli.py" to <agent_name> <内容>
 python3 "$AGENTS_DIR/scripts/cli.py" to <agent_name> <内容> --no-enter
 ```
 
+发送的消息会自动在正文前附加来源标识，方便接收方识别和回复：
+
+```
+[来自 kimi_coder_Alex (session: rectangular-viola / pane 1)]
+你好
+```
+
 **惰性清理**：如果目标 pane 已关闭或 session 不存在，会自动从 `registry.json` 中移除该 Agent，并提示用户。
 
 ### 读取 Agent 输出

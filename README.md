@@ -102,6 +102,12 @@ python3 "$AGENTS_DIR/scripts/cli.py" register claude_reviewer_Blob
 # 向某个 Agent 发送消息
 python3 "$AGENTS_DIR/scripts/cli.py" to kimi_coder_Alex "帮我实现一个 LRU Cache，用 Rust 写"
 
+接收方 Agent 收到的消息会自动附带发送方标识，例如：
+```
+[来自 kimi_coder_Alex (session: rectangular-viola / pane 1)]
+帮我实现一个 LRU Cache，用 Rust 写
+```
+
 # 读取某个 Agent 的最新输出（默认 100 行）
 python3 "$AGENTS_DIR/scripts/cli.py" from claude_reviewer_Blob
 
