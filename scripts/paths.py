@@ -37,3 +37,11 @@ def get_session_log_path(session_name: str) -> Path:
 
 def get_all_log_path() -> Path:
     return get_sessions_dir() / "all.md"
+
+
+def get_session_jsonl_path(session_name: str) -> Path:
+    return get_sessions_dir() / f"{session_name}.jsonl"
+
+
+def get_all_jsonl_path() -> Path:
+    return get_sessions_dir() / "all.jsonl"

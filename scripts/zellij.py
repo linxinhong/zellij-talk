@@ -22,14 +22,15 @@ def _run(
 
 
 def is_pane_alive(session: str, pane_id: str) -> bool:
-    """Check if a pane is still alive by dumping its screen."""
+    """Check if a pane is still alive by dumping its viewport (lightweight)."""
     result = _run(
         "--session", session,
         "action", "dump-screen",
         "--pane-id", pane_id,
-        "--full",
     )
     if "Session" in result.stderr and "not found" in result.stderr:
+        return False
+    if "not found" in result.stderr.lower():
         return False
     if not result.stdout:
         return False
@@ -54,13 +55,14 @@ def send_text(session: str, pane_id: str, text: str, *, no_enter: bool = False) 
         )
 
 
-def dump_screen(session: str, pane_id: str, *, ansi: bool = False) -> str:
+def dump_screen(session: str, pane_id: str, *, ansi: bool = False, full: bool = True) -> str:
     args = [
         "--session", session,
         "action", "dump-screen",
         "--pane-id", pane_id,
-        "--full",
     ]
+    if full:
+        args.append("--full")
     if ansi:
         args.append("--ansi")
     result = _run(*args, check=True)

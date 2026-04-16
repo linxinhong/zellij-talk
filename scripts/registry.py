@@ -2,11 +2,21 @@
 
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from filelock import FileLock
 from paths import get_registry_path
+
+
+@contextmanager
+def _registry_lock():
+    lock_path = get_registry_path().with_suffix(".lock")
+    lock = FileLock(str(lock_path), timeout=10)
+    with lock:
+        yield
 
 
 def load_registry() -> dict[str, Any]:
@@ -30,31 +40,61 @@ def save_registry(data: dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
-def register_agent(name: str, session: str, pane_id: str) -> None:
-    data = load_registry()
-    # Remove any other agent using the same pane in the same session
-    to_remove = [
-        k
-        for k, v in data.items()
-        if k != name and v.get("session") == session and v.get("pane_id") == pane_id
-    ]
-    for k in to_remove:
-        del data[k]
-    data[name] = {
-        "pane_id": pane_id,
-        "session": session,
-        "registered": datetime.now(timezone.utc).isoformat(),
-    }
-    save_registry(data)
+def register_agent(name: str, session: str, pane_id: str, extra_meta: dict[str, Any] | None = None) -> None:
+    with _registry_lock():
+        data = load_registry()
+        # Remove any other agent using the same pane in the same session
+        to_remove = [
+            k
+            for k, v in data.items()
+            if k != name and v.get("session") == session and v.get("pane_id") == pane_id
+        ]
+        for k in to_remove:
+            del data[k]
+        entry = {
+            "pane_id": pane_id,
+            "session": session,
+            "registered": datetime.now(timezone.utc).isoformat(),
+        }
+        if extra_meta:
+            entry.update(extra_meta)
+        data[name] = entry
+        save_registry(data)
 
 
 def unregister_agent(name: str) -> bool:
-    data = load_registry()
-    if name not in data:
-        return False
-    del data[name]
-    save_registry(data)
-    return True
+    with _registry_lock():
+        data = load_registry()
+        if name not in data:
+            return False
+        del data[name]
+        save_registry(data)
+        return True
+
+
+def replace_agent(name: str, session: str, pane_id: str, extra_meta: dict[str, Any] | None = None) -> str | None:
+    """Atomically replace any agent occupying the same pane and register the new one.
+    Returns the name of the replaced agent, or None.
+    """
+    with _registry_lock():
+        data = load_registry()
+        old = None
+        for k, v in data.items():
+            if v.get("session") == session and v.get("pane_id") == pane_id and k != name:
+                old = k
+                break
+        if old:
+            del data[old]
+        entry = {
+            "pane_id": pane_id,
+            "session": session,
+            "registered": datetime.now(timezone.utc).isoformat(),
+        }
+        if extra_meta:
+            entry.update(extra_meta)
+        data[name] = entry
+        save_registry(data)
+        return old
 
 
 def get_agent(name: str) -> dict[str, Any] | None:

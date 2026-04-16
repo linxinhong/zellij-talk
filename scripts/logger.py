@@ -1,23 +1,21 @@
 """Session conversation logger for zellij-talk."""
 
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from paths import get_all_log_path, get_sessions_dir, get_session_log_path
-from registry import find_agent_by_pane, load_registry
+from paths import get_all_jsonl_path, get_sessions_dir, get_session_jsonl_path
+from registry import find_agent_by_pane
 
 
 def _now_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _ensure_log_file(path: Path, session_name: str) -> None:
+def _ensure_dir(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(f"# Zellij Talk Session: {session_name}\n\n")
 
 
 def get_sender_info() -> dict[str, Any]:
@@ -51,31 +49,6 @@ def get_sender_info() -> dict[str, Any]:
     }
 
 
-def _format_from(sender: dict[str, Any]) -> str:
-    name = sender["name"]
-    session = sender.get("session")
-    pane_id = sender.get("pane_id")
-    if sender["source"] == "external":
-        return f"`外部终端` / `{name}`"
-    if session and pane_id:
-        return f"`{name}` (session: {session} / pane {pane_id})"
-    return f"`{name}`"
-
-
-def _format_to(agent_name: str, meta: dict[str, Any] | None) -> str:
-    if meta is None:
-        return f"`{agent_name}`"
-    session = meta.get("session", "unknown")
-    pane_id = meta.get("pane_id", "unknown")
-    return f"`{agent_name}` (session: {session} / pane {pane_id})"
-
-
-def _append_to_file(path: Path, content: str, session_name: str) -> None:
-    _ensure_log_file(path, session_name)
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(content)
-
-
 def log_message(
     target_agents: list[tuple[str, dict[str, Any] | None]],
     message_body: str,
@@ -83,33 +56,41 @@ def log_message(
     message_type: str = "direct",
     file_name: str | None = None,
 ) -> None:
-    """Log a message to relevant session logs and the global all.md."""
+    """Log a message to relevant session jsonl and the global all.jsonl."""
     sender = get_sender_info()
     timestamp = _now_str()
 
-    # Determine To line
+    # Determine To info
     if message_type == "broadcast":
-        agent_list = ", ".join(a[0] for a in target_agents)
-        to_line = f"📢 Broadcast ({agent_list})"
+        to_info = {"type": "broadcast", "targets": [{"name": a[0]} for a in target_agents]}
     elif message_type == "multicast":
-        agent_list = ", ".join(a[0] for a in target_agents)
-        to_line = f"📡 Multicast ({agent_list})"
+        to_info = {"type": "multicast", "targets": [{"name": a[0]} for a in target_agents]}
     else:
-        # direct or send-file: first target
-        to_line = _format_to(target_agents[0][0], target_agents[0][1]) if target_agents else "`未知`"
+        to_info = {
+            "type": "direct",
+            "targets": [
+                {
+                    "name": a[0],
+                    "session": a[1].get("session") if a[1] else None,
+                    "pane": a[1].get("pane_id") if a[1] else None,
+                }
+                for a in target_agents
+            ],
+        }
 
-    from_line = _format_from(sender)
+    from_info = {
+        "name": sender["name"],
+        "session": sender.get("session"),
+        "pane": sender.get("pane_id"),
+    }
 
-    # Build body
-    body_lines = []
-    if file_name:
-        body_lines.append(f"*[File: {file_name}]*")
-    body_lines.append("```text")
-    body_lines.append(message_body)
-    body_lines.append("```")
-    body = "\n".join(body_lines)
-
-    entry = f"---\n\n## {timestamp}\n\n**From:** {from_line}  \n**To:** {to_line}\n\n{body}\n\n"
+    record = {
+        "timestamp": timestamp,
+        "from": from_info,
+        "to": to_info,
+        "content": message_body,
+        "file": file_name,
+    }
 
     # Collect sessions to write to
     sessions_to_write: set[str] = set()
@@ -123,9 +104,13 @@ def log_message(
 
     # Write to each session log
     for session_name in sessions_to_write:
-        path = get_session_log_path(session_name)
-        _append_to_file(path, entry, session_name)
+        path = get_session_jsonl_path(session_name)
+        _ensure_dir(path)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    # Always write to all.md
-    all_path = get_all_log_path()
-    _append_to_file(all_path, entry, "all")
+    # Always write to all.jsonl
+    all_path = get_all_jsonl_path()
+    _ensure_dir(all_path)
+    with open(all_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
