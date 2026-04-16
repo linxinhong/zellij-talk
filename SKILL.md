@@ -134,10 +134,10 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ```bash
 ~/.agents/skills/zellij-talk/scripts/from.sh <agent_name> [行数] [--ansi]
 # 默认 100 行
-~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_23A3 50
+~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_Blob 50
 
 # 保留 ANSI 颜色
-~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_23A3 50 --ansi
+~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_Blob 50 --ansi
 ```
 
 ### 监听 Agent 输出
@@ -145,7 +145,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ```bash
 ~/.agents/skills/zellij-talk/scripts/watch.sh <agent_name> [关键词]
 # 监听直到检测到关键词
-~/.agents/skills/zellij-talk/scripts/watch.sh claude_reviewer_23A3 "审查完成"
+~/.agents/skills/zellij-talk/scripts/watch.sh claude_reviewer_Blob "审查完成"
 ```
 
 ### 阻塞等待关键词
@@ -153,7 +153,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ```bash
 ~/.agents/skills/zellij-talk/scripts/wait.sh <agent_name> <关键词> [超时秒数]
 # 默认超时 60 秒
-~/.agents/skills/zellij-talk/scripts/wait.sh claude_reviewer_23A3 "审查完成" 120
+~/.agents/skills/zellij-talk/scripts/wait.sh claude_reviewer_Blob "审查完成" 120
 ```
 
 ### 自动注册 Agent
@@ -169,7 +169,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ```bash
 ~/.agents/skills/zellij-talk/scripts/health.sh
 # 检查所有 Agent
-~/.agents/skills/zellij-talk/scripts/health.sh kimi_coder_88F7
+~/.agents/skills/zellij-talk/scripts/health.sh kimi_coder_Alex
 ```
 
 ### 清理僵尸 Agent
@@ -183,7 +183,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 
 ```bash
 ~/.agents/skills/zellij-talk/scripts/send-file.sh <agent_name> <文件路径>
-~/.agents/skills/zellij-talk/scripts/send-file.sh kimi_coder_88F7 src/main.rs
+~/.agents/skills/zellij-talk/scripts/send-file.sh kimi_coder_Alex src/main.rs
 ```
 
 ### 多播消息
@@ -238,20 +238,20 @@ source ~/.zshrc  # 或 source ~/.bashrc
 
 ```bash
 # 1. 各面板注册
-~/.agents/skills/zellij-talk/scripts/register.sh kimi_coder_F1B9
-~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_23A3
+~/.agents/skills/zellij-talk/scripts/register.sh kimi_coder_Alex
+~/.agents/skills/zellij-talk/scripts/register.sh claude_reviewer_Blob
 
 # 2. kimi 完成代码后，通知 reviewer
-~/.agents/skills/zellij-talk/scripts/to.sh claude_reviewer_23A3 \
-  "代码已实现，请审查：\n$(~/.agents/skills/zellij-talk/scripts/from.sh kimi_coder_F1B9 50)"
+~/.agents/skills/zellij-talk/scripts/to.sh claude_reviewer_Blob \
+  "代码已实现，请审查：\n$(~/.agents/skills/zellij-talk/scripts/from.sh kimi_coder_Alex 50)"
 
 # 3. reviewer 审查并反馈
-~/.agents/skills/zellij-talk/scripts/to.sh kimi_coder_F1B9 \
-  "$(~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_23A3)"
+~/.agents/skills/zellij-talk/scripts/to.sh kimi_coder_Alex \
+  "$(~/.agents/skills/zellij-talk/scripts/from.sh claude_reviewer_Blob)"
 
 # 4. 完成后注销
-~/.agents/skills/zellij-talk/scripts/unregister.sh kimi_coder_F1B9
-~/.agents/skills/zellij-talk/scripts/unregister.sh claude_reviewer_23A3
+~/.agents/skills/zellij-talk/scripts/unregister.sh kimi_coder_Alex
+~/.agents/skills/zellij-talk/scripts/unregister.sh claude_reviewer_Blob
 ```
 
 ### 工作流 2：广播通知
@@ -263,7 +263,7 @@ source ~/.zshrc  # 或 source ~/.bashrc
 ### 工作流 3：监听完成信号
 
 ```bash
-~/.agents/skills/zellij-talk/scripts/watch.sh claude_reviewer_23A3 "审查完成" &
+~/.agents/skills/zellij-talk/scripts/watch.sh claude_reviewer_Blob "审查完成" &
 # 后台监听，检测到关键词后触发后续流程
 ```
 

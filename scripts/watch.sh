@@ -1,7 +1,7 @@
 #!/bin/bash
 # 实时监听某个 Agent 的输出
 # 用法: watch.sh <agent_name> [关键词，检测到时执行回调]
-# 例如: watch.sh claude_reviewer_23A3 "审查完成"
+# 例如: watch.sh claude_reviewer_Blob "审查完成"
 
 set -euo pipefail
 

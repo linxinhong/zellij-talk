@@ -8,8 +8,8 @@ set -euo pipefail
 SCRIPTS="$HOME/.agents/skills/zellij-talk/scripts"
 
 # 默认 Agent 名（可配置）
-SOURCE_AGENT="${1:-kimi_coder_F1B9}"
-TARGET_AGENT="${2:-claude_reviewer_23A3}"
+SOURCE_AGENT="${1:-kimi_coder_Alex}"
+TARGET_AGENT="${2:-claude_reviewer_Blob}"
 
 # 读取源 Agent 的输出
 CONTENT=$("$SCRIPTS/from.sh" "$SOURCE_AGENT" 80)
